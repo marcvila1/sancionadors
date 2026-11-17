@@ -1,0 +1,410 @@
+{
+  "_nota": "Llistes per als desplegables i els filtres. Les que porten «_revisar» s'han de validar abans de treballar amb dades reals.",
+  "materies_car": [
+    {
+      "codi": "forestal",
+      "etiqueta": "Forestal",
+      "camp_pdf": "Forestal"
+    },
+    {
+      "codi": "caca",
+      "etiqueta": "Caça",
+      "camp_pdf": "Caca"
+    },
+    {
+      "codi": "pesca",
+      "etiqueta": "Pesca",
+      "camp_pdf": "Pesca"
+    },
+    {
+      "codi": "espais_naturals",
+      "etiqueta": "Espais naturals",
+      "camp_pdf": "EspaisNaturals"
+    },
+    {
+      "codi": "proteccio_animals",
+      "etiqueta": "Protecció d'animals",
+      "camp_pdf": "ProteccioAnimals"
+    },
+    {
+      "codi": "acces_motoritzat",
+      "etiqueta": "Accés motoritzat",
+      "camp_pdf": "AccesMoto"
+    },
+    {
+      "codi": "prevencio_incendis",
+      "etiqueta": "Prevenció d'incendis",
+      "camp_pdf": "PrevencioIncendis"
+    },
+    {
+      "codi": "aigues",
+      "etiqueta": "Aigües",
+      "camp_pdf": "Aigues"
+    },
+    {
+      "codi": "residus",
+      "etiqueta": "Residus",
+      "camp_pdf": "Residus"
+    },
+    {
+      "codi": "altres",
+      "etiqueta": "Altres",
+      "camp_pdf": "Altres"
+    }
+  ],
+  "tematiques": [
+    {
+      "codi": "fauna_protegida",
+      "etiqueta": "Fauna protegida"
+    },
+    {
+      "codi": "flora_protegida",
+      "etiqueta": "Flora protegida"
+    },
+    {
+      "codi": "habitats",
+      "etiqueta": "Hàbitats d'interès comunitari"
+    },
+    {
+      "codi": "enp_activitats",
+      "etiqueta": "Activitats no autoritzades en espais naturals protegits"
+    },
+    {
+      "codi": "enp_acces",
+      "etiqueta": "Accés motoritzat i circulació en espais naturals protegits"
+    },
+    {
+      "codi": "enp_obres",
+      "etiqueta": "Obres, instal·lacions i transformació del terreny en ENP"
+    },
+    {
+      "codi": "especies_invasores",
+      "etiqueta": "Espècies exòtiques invasores"
+    },
+    {
+      "codi": "altres",
+      "etiqueta": "Altres"
+    }
+  ],
+  "tipus_denunciant": [
+    {
+      "codi": "CAR",
+      "etiqueta": "Cos d'Agents Rurals"
+    },
+    {
+      "codi": "MOSSOS",
+      "etiqueta": "Mossos d'Esquadra"
+    },
+    {
+      "codi": "GUARDIA_CIVIL",
+      "etiqueta": "Guàrdia Civil (SEPRONA)"
+    },
+    {
+      "codi": "POLICIA_LOCAL",
+      "etiqueta": "Policia local"
+    },
+    {
+      "codi": "GUARDA_ENP",
+      "etiqueta": "Personal d'un espai natural protegit"
+    },
+    {
+      "codi": "PARTICULAR",
+      "etiqueta": "Particular o entitat"
+    },
+    {
+      "codi": "OFICI",
+      "etiqueta": "D'ofici"
+    }
+  ],
+  "qualificacions": [
+    {
+      "codi": "lleu",
+      "etiqueta": "Lleu"
+    },
+    {
+      "codi": "greu",
+      "etiqueta": "Greu"
+    },
+    {
+      "codi": "molt_greu",
+      "etiqueta": "Molt greu"
+    }
+  ],
+  "resultats_validacio": [
+    {
+      "codi": "admesa",
+      "etiqueta": "Admesa: es demana l'informe tècnic"
+    },
+    {
+      "codi": "no_competencia",
+      "etiqueta": "No és competència de la DG: es deriva"
+    },
+    {
+      "codi": "arxiu",
+      "etiqueta": "Arxiu (fets no constitutius d'infracció, prescripció…)"
+    }
+  ],
+  "sentits_resolucio": [
+    {
+      "codi": "sancio",
+      "etiqueta": "Imposició de sanció"
+    },
+    {
+      "codi": "sobreseiment",
+      "etiqueta": "Sobreseïment i arxiu"
+    },
+    {
+      "codi": "caducitat",
+      "etiqueta": "Declaració de caducitat"
+    }
+  ],
+  "mesures_accessories": [
+    {
+      "codi": "reparacio",
+      "etiqueta": "Reparació o restitució del medi"
+    },
+    {
+      "codi": "indemnitzacio",
+      "etiqueta": "Indemnització pels danys"
+    },
+    {
+      "codi": "decomis",
+      "etiqueta": "Decomís"
+    },
+    {
+      "codi": "inhabilitacio",
+      "etiqueta": "Inhabilitació o retirada d'autorització"
+    }
+  ],
+  "tipus_recurs": [
+    {
+      "codi": "alcada",
+      "etiqueta": "Recurs d'alçada",
+      "mesos_resoldre": 3
+    },
+    {
+      "codi": "reposicio",
+      "etiqueta": "Recurs potestatiu de reposició",
+      "mesos_resoldre": 1
+    },
+    {
+      "codi": "revisio",
+      "etiqueta": "Recurs extraordinari de revisió",
+      "mesos_resoldre": 3
+    },
+    {
+      "codi": "contencios",
+      "etiqueta": "Recurs contenciós administratiu (seguiment)",
+      "mesos_resoldre": null
+    }
+  ],
+  "sentits_recurs": [
+    {
+      "codi": "estimat",
+      "etiqueta": "Estimat"
+    },
+    {
+      "codi": "estimat_parcial",
+      "etiqueta": "Estimat en part"
+    },
+    {
+      "codi": "desestimat",
+      "etiqueta": "Desestimat"
+    },
+    {
+      "codi": "inadmes",
+      "etiqueta": "Inadmès"
+    }
+  ],
+  "tipificacions": [],
+  "_tipificacions_format": {
+    "id": "T-001",
+    "norma": "",
+    "article": "",
+    "descripcio": "",
+    "qualificacio": "lleu | greu | molt_greu",
+    "import_minim": 0,
+    "import_maxim": 0,
+    "tematica": ""
+  },
+  "especies": [
+    {
+      "nom": "Oca de galta blanca (Branta leucopsis)"
+    }
+  ],
+  "comarques": [
+    {
+      "nom": "Alt Camp",
+      "ambit": "STTGN"
+    },
+    {
+      "nom": "Alt Empordà",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Alt Penedès",
+      "ambit": "STPE"
+    },
+    {
+      "nom": "Alt Urgell",
+      "ambit": "STAPA"
+    },
+    {
+      "nom": "Alta Ribagorça",
+      "ambit": "STAPA"
+    },
+    {
+      "nom": "Anoia",
+      "ambit": "STPE"
+    },
+    {
+      "nom": "Aran",
+      "ambit": "STAPA"
+    },
+    {
+      "nom": "Bages",
+      "ambit": "STCC"
+    },
+    {
+      "nom": "Baix Camp",
+      "ambit": "STTGN"
+    },
+    {
+      "nom": "Baix Ebre",
+      "ambit": "STEBR"
+    },
+    {
+      "nom": "Baix Empordà",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Baix Llobregat",
+      "ambit": "STBCN"
+    },
+    {
+      "nom": "Baix Penedès",
+      "ambit": "STPE"
+    },
+    {
+      "nom": "Barcelonès",
+      "ambit": "STBCN"
+    },
+    {
+      "nom": "Berguedà",
+      "ambit": "STCC"
+    },
+    {
+      "nom": "Cerdanya",
+      "ambit": "STAPA"
+    },
+    {
+      "nom": "Conca de Barberà",
+      "ambit": "STTGN"
+    },
+    {
+      "nom": "Garraf",
+      "ambit": "STPE"
+    },
+    {
+      "nom": "Garrigues",
+      "ambit": "STLLE"
+    },
+    {
+      "nom": "Garrotxa",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Gironès",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Lluçanès",
+      "ambit": "STCC"
+    },
+    {
+      "nom": "Maresme",
+      "ambit": "STBCN"
+    },
+    {
+      "nom": "Moianès",
+      "ambit": "STCC"
+    },
+    {
+      "nom": "Montsià",
+      "ambit": "STEBR"
+    },
+    {
+      "nom": "Noguera",
+      "ambit": "STLLE"
+    },
+    {
+      "nom": "Osona",
+      "ambit": "STCC"
+    },
+    {
+      "nom": "Pallars Jussà",
+      "ambit": "STAPA"
+    },
+    {
+      "nom": "Pallars Sobirà",
+      "ambit": "STAPA"
+    },
+    {
+      "nom": "Pla d'Urgell",
+      "ambit": "STLLE"
+    },
+    {
+      "nom": "Pla de l'Estany",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Priorat",
+      "ambit": "STTGN"
+    },
+    {
+      "nom": "Ribera d'Ebre",
+      "ambit": "STEBR"
+    },
+    {
+      "nom": "Ripollès",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Segarra",
+      "ambit": "STLLE"
+    },
+    {
+      "nom": "Segrià",
+      "ambit": "STLLE"
+    },
+    {
+      "nom": "Selva",
+      "ambit": "STGIR"
+    },
+    {
+      "nom": "Solsonès",
+      "ambit": "STCC"
+    },
+    {
+      "nom": "Tarragonès",
+      "ambit": "STTGN"
+    },
+    {
+      "nom": "Terra Alta",
+      "ambit": "STEBR"
+    },
+    {
+      "nom": "Urgell",
+      "ambit": "STLLE"
+    },
+    {
+      "nom": "Vallès Occidental",
+      "ambit": "STBCN"
+    },
+    {
+      "nom": "Vallès Oriental",
+      "ambit": "STBCN"
+    }
+  ],
+  "_comarques_revisar": "Correspondència comarca → àmbit territorial (codi d'unitat dels Serveis Territorials del Motor de Contractació). Cal validar-la."
+}

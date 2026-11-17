@@ -1,0 +1,56 @@
+[
+  {
+    "id": "SAN-2024-0001",
+    "estat": "entrada",
+    "origen": {
+      "model": "D01",
+      "num_acta": "1930-24",
+      "versio_model": "1.3",
+      "denunciant_tipus": "CAR",
+      "agents": ["1290", "1356"],
+      "data_fets": "2024-10-19",
+      "hora_fets": "12:10",
+      "data_entrada": "2024-10-21",
+      "fitxer_acta": null
+    },
+    "localitzacio": {
+      "comarca": "Baix Empordà",
+      "municipi": "Pals",
+      "paratge": "Les Vessanes",
+      "utm": { "x": 511502, "y": 4647828 },
+      "ein": null,
+      "enp": null,
+      "dins_enp": false
+    },
+    "materia_car": ["caca"],
+    "materia_car_altres": null,
+    "tematica": "fauna_protegida",
+    "fets": "Abatre quatre oques (de galta blanca), practicant la cacera amb escopeta (tres han mort; la quarta es du al centre de recuperació de fauna).",
+    "observacions": "Fora del Parc Natural del Baix Ter.\nDisposa de permís d'armes, assegurança i permís de l'APC GI-10220 \"Els Pontanals\".\nComportament correcte.",
+    "documentacio_adjunta": {
+      "informe_complementari": true,
+      "reportatge_fotografic": true,
+      "actes": false,
+      "actes_num": null,
+      "altres": "Original signada"
+    },
+    "persona_id": "PER-0001",
+    "especies": [
+      { "nom": "Oca de galta blanca (Branta leucopsis)", "exemplars": 4, "morts": 3, "ferits": 1, "detall": "L'exemplar ferit s'ha traslladat al centre de recuperació de fauna" }
+    ],
+    "tipificacio": { "norma": null, "article": null, "qualificacio": null },
+    "assignacio": { "juridic": null, "tecnic": null },
+    "validacio": null,
+    "informes": [],
+    "instruccio": null,
+    "resolucio": null,
+    "recursos": [],
+    "documents": [],
+    "dades_prova": true,
+    "versio": 1,
+    "creat": "2024-10-21T10:00:00.000Z",
+    "creat_per": "Càrrega inicial",
+    "modificat": "2024-10-21T10:00:00.000Z",
+    "modificat_per": "Càrrega inicial"
+  }
+]

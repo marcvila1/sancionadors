@@ -1,0 +1,87 @@
+{
+  "perfils": {
+    "juridic": {
+      "etiqueta": "Jurídic/a",
+      "descripcio": "Gestiona el tràmit: valida l'entrada, demana els informes tècnics, incoa, instrueix, resol i tramita els recursos."
+    },
+    "tecnic": {
+      "etiqueta": "Tècnic/a",
+      "descripcio": "Redacta els informes tècnics que li assignen i que donen suport al tràmit jurídic."
+    },
+    "consulta": {
+      "etiqueta": "Consulta",
+      "descripcio": "Pot consultar els expedients i el mòdul de dades, sense fer canvis."
+    }
+  },
+  "estats_expedient": {
+    "entrada": {
+      "etiqueta": "Pendent de validació",
+      "fase": 1,
+      "responsable": "juridic"
+    },
+    "informe_tecnic": {
+      "etiqueta": "Informe tècnic demanat",
+      "fase": 2,
+      "responsable": "tecnic"
+    },
+    "informe_lliurat": {
+      "etiqueta": "Informe lliurat · pendent d'incoació",
+      "fase": 3,
+      "responsable": "juridic"
+    },
+    "instruccio": {
+      "etiqueta": "Incoat · en instrucció",
+      "fase": 3,
+      "responsable": "juridic"
+    },
+    "resolt": {
+      "etiqueta": "Resolt",
+      "fase": 4,
+      "responsable": null
+    },
+    "arxivat": {
+      "etiqueta": "Arxivat o derivat",
+      "fase": 4,
+      "responsable": null
+    }
+  },
+  "transicions": {
+    "juridic": {
+      "entrada": [
+        "informe_tecnic",
+        "arxivat"
+      ],
+      "informe_lliurat": [
+        "instruccio",
+        "informe_tecnic",
+        "arxivat"
+      ],
+      "instruccio": [
+        "resolt",
+        "arxivat"
+      ]
+    },
+    "tecnic": {},
+    "consulta": {}
+  },
+  "estats_informe": {
+    "demanat": "Demanat",
+    "en_curs": "En redacció",
+    "lliurat": "Lliurat"
+  },
+  "estats_recurs": {
+    "presentat": "Pendent de tràmit jurídic",
+    "informe": "Informe tècnic demanat",
+    "resolt": "Resolt"
+  },
+  "terminis": {
+    "_revisar": "Terminis per als avisos. Cal que l'assessoria jurídica en validi els valors.",
+    "dies_informe_tecnic": 15,
+    "mesos_caducitat_procediment": 6,
+    "dies_avis_abans": 15
+  },
+  "estats_que_admeten_recurs": [
+    "instruccio",
+    "resolt"
+  ]
+}

@@ -1,0 +1,2348 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motor de Sancionadors DGPAMN</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://geoserveis.icgc.cat https://tile.openstreetmap.org https://unpkg.com; connect-src 'self' data: blob: https://raw.githubusercontent.com https://unpkg.com; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src blob:">
+<meta name="referrer" content="no-referrer">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  /* ============================================================
+     VARIABLES (les mateixes que el Motor de Contractació)
+     ============================================================ */
+  :root {
+    --color-primary-teal: #088074;
+    --color-primary-teal-light: #40988d;
+    --color-primary-teal-dark: #00756a;
+    --color-accent-mint: #9fd5cc;
+    --color-success-green: #317439;
+    --color-link-blue: #0078d6;
+    --color-bg-white: #ffffff;
+    --color-bg-page: #f8f7f6;
+    --color-bg-hover: #f0f0f0;
+    --color-text-primary: #242424;
+    --color-text-secondary: #605e5c;
+    --color-text-strong: #000000;
+    --color-text-on-dark: #ffffff;
+    --color-warning: #e3b341;
+    --color-danger: #d32f2f;
+    --color-border: #e0e0e0;
+    --font-primary: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-size-base: 14px;
+    --font-size-small: 13px;
+    --header-height: 48px;
+    --border-radius-base: 0px;
+    /* Estat de conservació (paleta d'estat: sempre amb icona + etiqueta) */
+    --estat-bo: #0ca30c;
+    --estat-regular: #fab219;
+    --estat-dolent: #ec835a;
+    --estat-ruinos: #d03b3b;
+    --estat-buit: #8a8a85;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-primary); font-size: var(--font-size-base); color: var(--color-text-primary);
+    background-color: var(--color-bg-page); line-height: 1.5; min-height: 100vh; display: flex; flex-direction: column; }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  a { color: var(--color-link-blue); }
+  [hidden] { display: none !important; }
+
+  /* ===== CAPÇALERA ===== */
+  .app-header { height: var(--header-height); background-color: var(--color-primary-teal); color: var(--color-text-on-dark);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 2px 4px rgba(0,0,0,.1); gap: 12px; }
+  .app-header .brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 16px; cursor: pointer;
+    padding: 8px 12px; transition: background-color .2s ease; min-width: 0; }
+  .app-header .brand span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-header .brand:hover { background-color: var(--color-primary-teal-light); }
+  .app-header .brand-logo { width: 32px; height: 32px; flex: none; background-color: var(--color-accent-mint); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: var(--color-primary-teal); }
+  .usuari-cap { background: transparent; border: 1px solid rgba(255,255,255,.5); color: #fff; border-radius: 4px; padding: 4px 12px;
+    cursor: pointer; font-size: 13px; white-space: nowrap; max-width: 45vw; overflow: hidden; text-overflow: ellipsis; }
+  .usuari-cap:hover { background: var(--color-primary-teal-light); }
+
+  /* ===== NAVEGACIÓ ===== */
+  .module-nav { background-color: var(--color-bg-white); border-bottom: 2px solid var(--color-border); display: flex;
+    overflow-x: auto; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .module-nav button { background: transparent; border: none; color: var(--color-text-secondary); padding: 16px 20px; cursor: pointer;
+    border-bottom: 3px solid transparent; transition: all .2s ease; white-space: nowrap; font-weight: 500; }
+  .module-nav button:hover { background-color: var(--color-bg-hover); color: var(--color-text-primary); }
+  .module-nav button.active { color: var(--color-primary-teal); border-bottom-color: var(--color-primary-teal); }
+
+  /* ===== BARRA DE CARPETA (com al Motor) ===== */
+  .barra-carpeta { max-width: 1400px; width: calc(100% - 40px); margin: 8px auto 0; padding: 8px 14px; border-radius: 6px; font-size: 14px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .barra-carpeta:empty { display: none; }
+  .barra-carpeta.connectada { background: #e8f5e9; color: #1b5e20; }
+  .barra-carpeta.permis { background: #fff8e1; color: #6d4c00; }
+  .barra-carpeta.cap, .barra-carpeta.noDisponible { background: #f3f3f3; color: #555; }
+  .barra-carpeta .botons { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-carpeta { border: 1px solid var(--color-primary-teal); background: #fff; color: var(--color-primary-teal); border-radius: 4px;
+    padding: 4px 12px; cursor: pointer; font-size: 13px; }
+  .btn-carpeta:hover { background: #f0f8f6; }
+  .pendents-desar { background: #fff3e0; color: #8a3b00; border-radius: 4px; padding: 2px 8px; font-weight: 600; }
+
+  /* ===== CONTENIDOR I MÒDULS ===== */
+  .container { max-width: 1400px; width: 100%; margin: 0 auto; padding: 20px; flex: 1; }
+  .module { display: none; background-color: var(--color-bg-white); padding: 24px; animation: fadeIn .3s ease; }
+  .module.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .cap-modul { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .cap-modul h1 { font-size: 26px; color: var(--color-text-strong); margin-bottom: 4px; }
+  .cap-modul p { color: var(--color-text-secondary); max-width: 680px; }
+  .accions-modul { display: flex; gap: 10px; flex-wrap: wrap; }
+  .text-muted { color: var(--color-text-secondary); }
+  .text-small { font-size: var(--font-size-small); }
+
+  /* ===== BOTONS I FORMULARIS (com al Motor) ===== */
+  .btn { border: none; border-radius: 4px; padding: 9px 18px; cursor: pointer; font-weight: 500; transition: background-color .2s ease; }
+  .btn-primary { background-color: var(--color-primary-teal); color: #fff; }
+  .btn-primary:hover { background-color: var(--color-primary-teal-dark); }
+  .btn-secondary { background-color: #e0e0e0; color: var(--color-text-primary); }
+  .btn-secondary:hover { background-color: #d0d0d0; }
+  .btn-perill { background: #fff; color: var(--color-danger); border: 1px solid var(--color-danger); }
+  .btn-perill:hover { background: #fdecea; }
+  .btn-petit { padding: 5px 12px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-link { background: none; border: none; color: var(--color-link-blue); cursor: pointer; padding: 0; text-decoration: underline; }
+  input[type=text], input[type=search], select, textarea { width: 100%; border: 1px solid #c8c6c4; border-radius: 2px; padding: 7px 10px;
+    background: #fff; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--color-primary-teal); outline-offset: -1px; border-color: var(--color-primary-teal); }
+  textarea { resize: vertical; min-height: 64px; }
+  label.required::after { content: " *"; color: var(--color-danger); }
+  .info-box { background-color: #f0f8f6; border-left: 4px solid var(--color-primary-teal); padding: 12px 15px; margin-bottom: 16px; }
+  .avis-box { background: #fff8e1; border-left: 4px solid #f0b400; padding: 10px 14px; margin-bottom: 14px; }
+  .error-box { background: #fdecea; border-left: 4px solid var(--color-danger); padding: 10px 14px; margin-bottom: 14px; }
+
+  /* ===== ESTAT DE CONSERVACIÓ ===== */
+  .estat { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-primary); white-space: nowrap; }
+  .estat-ico { width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; flex: none; }
+  .estat-ico.fosc { color: #0b0b0b; }
+
+  /* ===== MÒDUL 1: GESTIÓ DEL PATRIMONI ===== */
+  .barra-parc { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .barra-parc label { font-weight: 600; }
+  .barra-parc select { max-width: 520px; font-size: 15px; padding: 8px 10px; }
+  .parcs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .parc-card { border: 1px solid var(--color-border); padding: 16px; cursor: pointer; background: #fff; text-align: left;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: all .2s ease; }
+  .parc-card:hover { border-color: var(--color-primary-teal); box-shadow: 0 4px 8px rgba(0,0,0,.12); transform: translateY(-2px); }
+  .parc-card .codi { font-size: 12px; font-weight: 700; color: var(--color-primary-teal); letter-spacing: .03em; }
+  .parc-card h3 { font-size: 15px; color: var(--color-text-strong); margin: 2px 0 6px; line-height: 1.3; }
+  .parc-card .n { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .layout-patrimoni { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 20px; align-items: start; }
+  .panell-llista { border: 1px solid var(--color-border); background: #fff; position: sticky; top: 8px; }
+  .llista-eines { padding: 10px; display: grid; gap: 8px; border-bottom: 1px solid var(--color-border); background: #fafafa; }
+  .llista-recompte { padding: 6px 12px; font-size: 12px; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); }
+  .llista-immobles { list-style: none; max-height: calc(100vh - 260px); min-height: 200px; overflow-y: auto; }
+  .llista-immobles li button { width: 100%; text-align: left; background: #fff; border: none; border-bottom: 1px solid #f0f0f0;
+    padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; border-left: 3px solid transparent; }
+  .llista-immobles li button:hover { background: var(--color-bg-hover); }
+  .llista-immobles li button.sel { background: #f0f8f6; border-left-color: var(--color-primary-teal); }
+  .llista-immobles .nom { font-weight: 600; color: var(--color-text-strong); }
+  .llista-immobles .sub { font-size: 12px; color: var(--color-text-secondary); }
+  .llista-immobles .linia { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .marca { font-size: 11px; padding: 0 6px; border-radius: 8px; background: #fff3e0; color: #8a3b00; font-weight: 600; }
+  .marca.comp { background: #e3f2fd; color: #0b4f8a; }
+  .exec { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; border: 1px solid; white-space: nowrap; }
+  .exec-operatiu { background: #e8f5f3; color: #05594f; border-color: #9fd5cc; }
+  .exec-planificacio { background: #e3f2fd; color: #0b4f8a; border-color: #9cc7ec; }
+  .exec-requereix_revisio { background: #fff3e0; color: #8a3b00; border-color: #f2b77c; }
+  .exec-suprimit { background: #f0f0ee; color: #55554f; border-color: #c9c9c4; text-decoration: line-through; }
+  .exec-buit { background: #fff; color: #8a8a85; border-color: #d6d6d2; }
+  .motius-auto { margin: 0; padding: 8px 12px 8px 28px; background: #fff3e0; border-left: 3px solid #e08a2e; font-size: 13px; }
+  .motius-auto.buit { list-style: none; padding-left: 12px; background: #f7f7f5; border-left-color: #d6d6d2; color: var(--color-text-secondary); }
+  .panell-fitxa { border: 1px solid var(--color-border); background: #fff; min-height: 300px; }
+  .fitxa-buida { padding: 60px 20px; text-align: center; color: var(--color-text-secondary); }
+  .fitxa-cap { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: #fafafa; position: sticky; top: 0; z-index: 500; }
+  .fitxa-cap h2 { font-size: 20px; color: var(--color-text-strong); line-height: 1.3; }
+  .fitxa-cap .id { font-family: Consolas, monospace; font-size: 12px; color: var(--color-text-secondary); }
+  .fitxa-cap .botons { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+  .fitxa-cos { padding: 8px 20px 20px; }
+  .grup { border-bottom: 1px solid #eee; }
+  .grup > summary { list-style: none; cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 15px; color: var(--color-primary-teal-dark);
+    display: flex; align-items: center; gap: 8px; }
+  .grup > summary::-webkit-details-marker { display: none; }
+  .grup > summary::before { content: "▸"; transition: transform .15s; display: inline-block; }
+  .grup[open] > summary::before { transform: rotate(90deg); }
+  .grup > summary .compte { font-weight: 400; font-size: 12px; color: var(--color-text-secondary); }
+  .grup-cos { padding: 0 0 14px 18px; }
+  .camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px 20px; }
+  .camp { min-width: 0; }
+  .camp.ample { grid-column: 1 / -1; }
+  .camp .et { font-size: 12px; color: var(--color-text-secondary); }
+  .camp .vl { color: var(--color-text-strong); overflow-wrap: anywhere; white-space: pre-wrap; }
+  .buit { color: #a19f9d; }
+  .camp label { display: block; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 3px; }
+  .camp .unitat { font-weight: 400; }
+  .camp .ajuda { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+  .camp .camp-error { font-size: 12px; color: var(--color-danger); margin-top: 2px; }
+  .camp.te-error input, .camp.te-error select, .camp.te-error textarea { border-color: var(--color-danger); background: #fffafa; }
+  .camp .nou-valor { font-size: 11px; color: #8a3b00; margin-top: 2px; }
+  .zona { border: 1px solid var(--color-border); padding: 12px 14px; margin: 10px 0; background: #fcfcfb; }
+  .zona-cap { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+  .zona-cap h4 { font-size: 14px; }
+  .mini-mapa { height: 260px; border: 1px solid var(--color-border); margin-top: 12px; }
+  .mini-mapa.editable { height: 340px; cursor: crosshair; border: 2px solid var(--color-primary-teal); }
+  .mini-mapa.editable .leaflet-interactive { cursor: grab; }
+  .camp.acabat-omplir input { background: #e8f5f3; transition: background .3s; }
+  .requisits-fase { grid-column: 1 / -1; }
+  .nota-mapa { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+  .fitxa-edicio .fitxa-cap { background: #fff8e1; }
+  .peu-edicio { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--color-border); padding: 12px 20px;
+    display: flex; justify-content: flex-end; gap: 10px; z-index: 500; flex-wrap: wrap; }
+  .xips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .xip { display: inline-flex; align-items: center; gap: 4px; background: #f0f8f6; border: 1px solid var(--color-accent-mint);
+    color: var(--color-primary-teal-dark); border-radius: 12px; padding: 1px 10px; font-size: 12px; }
+  button.xip { cursor: pointer; }
+  button.xip:hover { background: #e0f0ec; }
+
+  /* ===== TAULES ===== */
+  .taula-wrap { overflow-x: auto; }
+  table.taula { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .taula th { text-align: left; font-weight: 600; color: var(--color-text-secondary); border-bottom: 2px solid var(--color-border);
+    padding: 8px 10px; white-space: nowrap; background: #fafafa; }
+  .taula th.ord { cursor: pointer; user-select: none; }
+  .taula th.ord:hover { color: var(--color-text-primary); }
+  .taula td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  .taula tbody tr.clic { cursor: pointer; }
+  .taula tbody tr.clic:hover { background: var(--color-bg-hover); }
+  .taula td.num, .taula th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .taula .detall td { background: #fafafa; }
+  .canvis-llista { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .canvis-llista td, .canvis-llista th { padding: 4px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+  .abans { color: #8a3b00; text-decoration: line-through; text-decoration-color: rgba(138,59,0,.4); }
+  .despres { color: #1b5e20; font-weight: 600; }
+  .paginacio { display: flex; gap: 6px; align-items: center; justify-content: flex-end; padding-top: 10px; flex-wrap: wrap; }
+
+  /* ===== MÒDUL 2: GESTIÓ DE DADES ===== */
+  .layout-dades { display: grid; grid-template-columns: 290px 1fr; gap: 20px; align-items: start; }
+  .panell-filtres { border: 1px solid var(--color-border); background: #fafafa; position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; }
+  .filtres-cap { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--color-border);
+    position: sticky; top: 0; background: #fafafa; z-index: 2; }
+  .filtres-cerca { padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
+  .filtre { border-bottom: 1px solid var(--color-border); }
+  .filtre > summary { list-style: none; cursor: pointer; padding: 9px 12px; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+  .filtre > summary::-webkit-details-marker { display: none; }
+  .filtre > summary .n-sel { background: var(--color-primary-teal); color: #fff; border-radius: 9px; padding: 0 7px; font-size: 11px; }
+  .filtre-cos { padding: 0 12px 10px; }
+  .filtre-cos .cerca-opcio { margin-bottom: 6px; padding: 4px 8px; font-size: 12px; }
+  .opcions { max-height: 210px; overflow-y: auto; display: grid; gap: 1px; }
+  .opcio { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 2px; cursor: pointer; }
+  .opcio:hover { background: #fff; }
+  .opcio .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .opcio .c { color: var(--color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .opcio.zero { opacity: .45; }
+  .tri { display: grid; grid-template-columns: 1fr 120px; gap: 6px; align-items: center; font-size: 13px; padding: 3px 0; }
+  .tri select { padding: 3px 6px; font-size: 12px; }
+  .rang { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .rang input { padding: 4px 8px; font-size: 12px; }
+  .panell-resultats { min-width: 0; display: grid; gap: 16px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; min-height: 0; }
+  .chips:empty { display: none; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kpi { border: 1px solid var(--color-border); background: #fff; padding: 12px 14px; }
+  .kpi .et { font-size: 12px; color: var(--color-text-secondary); }
+  .kpi .v { font-size: 26px; font-weight: 600; color: var(--color-text-strong); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .kpi .s { font-size: 12px; color: var(--color-text-secondary); }
+  .targeta { border: 1px solid var(--color-border); background: #fff; padding: 14px 16px; min-width: 0; }
+  .targeta h2 { font-size: 15px; color: var(--color-text-strong); }
+  .targeta-cap { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .targeta-cap label { font-size: 13px; color: var(--color-text-secondary); display: flex; gap: 6px; align-items: center; }
+  .mapa-dades { height: 460px; border: 1px solid var(--color-border); }
+  .dues-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .barres { display: grid; gap: 6px; margin-top: 10px; }
+  .barra { display: grid; grid-template-columns: minmax(110px, 38%) 1fr 64px; gap: 8px; align-items: center; font-size: 13px; }
+  .barra .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra .pista { height: 14px; background: #f3f2f1; position: relative; }
+  .barra .ple { position: absolute; inset: 0 auto 0 0; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .barra .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+  .llegenda-mapa { background: rgba(255,255,255,.95); padding: 8px 10px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    font-size: 12px; line-height: 1.7; }
+  .llegenda-mapa .estat { font-size: 12px; }
+  .popup-el h4 { font-size: 14px; margin-bottom: 2px; }
+  .popup-el p { margin: 2px 0; font-size: 12px; }
+
+  /* ===== FINESTRES (estil de la finestra de carpeta del Motor) ===== */
+  .finestra-fons { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 10000; display: flex; align-items: center;
+    justify-content: center; padding: 16px; }
+  .finestra { background: #fff; color: #222; max-width: 620px; width: 100%; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.3);
+    overflow: hidden; font-size: 15px; line-height: 1.5; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+  .finestra.ampla { max-width: 860px; }
+  .finestra .fc-cap { background: var(--color-primary-teal); color: #fff; padding: 14px 20px; font-size: 18px; font-weight: 600; }
+  .finestra .fc-cap small { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px; background: #fff;
+    color: var(--color-primary-teal); font-size: 12px; font-weight: 700; vertical-align: middle; }
+  .finestra .fc-cos { padding: 16px 20px 4px; overflow-y: auto; }
+  .finestra .fc-cos p { margin: 0 0 10px; }
+  .finestra .fc-cos ol, .finestra .fc-cos ul { margin: 0 0 12px; padding-left: 22px; }
+  .finestra .fc-nota { background: #fff8e1; border-left: 4px solid #f0b400; padding: 8px 12px; font-size: 14px; margin-bottom: 12px; }
+  .finestra .fc-peu { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px 16px; flex-wrap: wrap; border-top: 1px solid #eee; }
+  .finestra .fc-peu button { border-radius: 4px; padding: 8px 16px; font-size: 14px; cursor: pointer; border: 1px solid var(--color-primary-teal); }
+  .finestra .fc-principal { background: var(--color-primary-teal); color: #fff; }
+  .finestra .fc-secundari { background: #fff; color: var(--color-primary-teal); }
+  .finestra .camp { margin-bottom: 12px; }
+  .finestra .camp label { font-size: 13px; }
+
+  /* ===== AVISOS ===== */
+  #toasts { position: fixed; bottom: 20px; right: 20px; z-index: 11000; display: grid; gap: 8px; max-width: min(420px, calc(100vw - 40px)); }
+  .toast { background: #1b5e20; color: #fff; padding: 12px 16px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-size: 14px; }
+  .toast.error { background: #b71c1c; }
+  .toast.avis { background: #8a5a00; }
+
+  /* ===== PEU ===== */
+  .app-footer { background-color: var(--color-text-strong); color: var(--color-text-on-dark); padding: 16px 20px; text-align: center; font-size: 12px; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 980px) {
+    .layout-patrimoni, .layout-dades { grid-template-columns: 1fr; }
+    .panell-llista, .panell-filtres { position: static; max-height: none; }
+    .llista-immobles { max-height: 360px; }
+    .dues-col { grid-template-columns: 1fr; }
+  }
+  .llista-cap { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--color-border); gap: 8px; }
+  .llista-cap select { font: inherit; font-size: 12px; padding: 3px 4px; }
+  @media (max-width: 768px) {
+    .module-nav button { padding: 12px 16px; font-size: 13px; }
+    .container { padding: 12px; }
+    .module { padding: 16px; }
+    .cap-modul h1 { font-size: 22px; }
+    .app-header .brand span { font-size: 14px; }
+    .mapa-dades { height: 340px; }
+    .fitxa-cap { position: static; }
+  }
+
+  /* ============================================================
+     PROPIS DEL MOTOR DE SANCIONADORS
+     ============================================================ */
+  .nav-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: #d03b3b; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+  /* Home */
+  .benvinguda { margin-bottom: 18px; }
+  .benvinguda .perfil-actual { display: inline-flex; gap: 6px; align-items: center; background: #f0f8f6; border: 1px solid var(--color-accent-mint);
+    color: var(--color-primary-teal-dark); border-radius: 12px; padding: 2px 12px; font-size: 13px; font-weight: 600; }
+  .home-moduls { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .modul-card { border: 1px solid var(--color-border); border-top: 4px solid var(--color-primary-teal); background: #fff; padding: 18px 20px; cursor: pointer;
+    text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,.08); transition: all .2s ease; display: flex; flex-direction: column; gap: 10px; }
+  .modul-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,.12); transform: translateY(-2px); }
+  .modul-card .ico { font-size: 26px; line-height: 1; }
+  .modul-card h2 { font-size: 18px; color: var(--color-text-strong); }
+  .modul-card p { color: var(--color-text-secondary); font-size: 13px; }
+  .modul-card .xifra { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-text-strong); line-height: 1.1; }
+  .modul-card ul { list-style: none; display: grid; gap: 4px; font-size: 13px; }
+  .modul-card li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted #e5e5e5; padding-bottom: 2px; }
+  .modul-card li b { font-variant-numeric: tabular-nums; }
+  .modul-card .anar { margin-top: auto; color: var(--color-primary-teal); font-weight: 600; font-size: 13px; }
+  .safata { list-style: none; display: grid; gap: 0; }
+  .safata li button { width: 100%; text-align: left; border: none; background: #fff; border-bottom: 1px solid #f0f0f0; border-left: 4px solid var(--color-primary-teal);
+    padding: 9px 12px; cursor: pointer; display: grid; gap: 2px; font: inherit; }
+  .safata li button:hover { background: var(--color-bg-hover); }
+  .safata li button.avis { border-left-color: #f0b400; }
+  .safata li button.vençut { border-left-color: var(--color-danger); }
+  .safata .t { font-weight: 600; color: var(--color-text-strong); }
+  .safata .s { font-size: 12px; color: var(--color-text-secondary); }
+  .safata-buida { padding: 16px; color: var(--color-text-secondary); font-size: 13px; }
+
+  /* Estats d'expedient (sempre amb text) */
+  .ee { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 10px; border: 1px solid; white-space: nowrap; }
+  .ee-entrada { background: #e3f2fd; color: #0b4f8a; border-color: #9cc7ec; }
+  .ee-informe_tecnic, .ee-informe, .ee-demanat, .ee-en_curs { background: #fff8e1; color: #6d5300; border-color: #f2d27c; }
+  .ee-informe_lliurat, .ee-presentat { background: #fff1e6; color: #8a3b00; border-color: #f2b77c; }
+  .ee-instruccio { background: #f1ecfa; color: #4a2a86; border-color: #c7b5ea; }
+  .ee-resolt, .ee-lliurat { background: #e8f5f3; color: #05594f; border-color: #9fd5cc; }
+  .ee-arxivat { background: #f0f0ee; color: #55554f; border-color: #c9c9c4; }
+
+  /* Fases del tràmit */
+  .fases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0 14px; }
+  .fase { border-top: 5px solid #e0e0e0; padding: 6px 4px 0; font-size: 12px; color: var(--color-text-secondary); }
+  .fase b { display: block; font-size: 13px; }
+  .fase.feta { border-top-color: var(--color-primary-teal); color: var(--color-primary-teal-dark); }
+  .fase.actual { border-top-color: #f0b400; color: var(--color-text-strong); }
+  .fase.tancada { border-top-color: #8a8a85; }
+
+  /* Fitxa d'expedient */
+  .targeta-informe { border: 1px solid var(--color-border); border-left: 4px solid #f0b400; padding: 10px 14px; margin: 8px 0; background: #fff; }
+  .targeta-informe.lliurat { border-left-color: var(--color-primary-teal); }
+  .targeta-informe .cap { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+  .accions-fitxa { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 20px; border-bottom: 1px solid var(--color-border); background: #f0f8f6; }
+  .accions-fitxa:empty { display: none; }
+  .accions-fitxa .qui { width: 100%; font-size: 12px; color: var(--color-text-secondary); }
+  .avisos-fitxa { margin: 12px 20px 0; }
+  .hist-linia { font-size: 13px; border-left: 3px solid var(--color-accent-mint); padding: 3px 10px; margin-bottom: 6px; }
+  .hist-linia .q { color: var(--color-text-secondary); font-size: 12px; }
+
+  /* Formularis a les finestres */
+  .finestra .camps { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; }
+  .finestra .camp input:not([type=checkbox]):not([type=file]), .finestra .camp select, .finestra .camp textarea { width: 100%; box-sizing: border-box; }
+  .finestra h3.sec { font-size: 14px; color: var(--color-primary-teal-dark); margin: 14px 0 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+  .finestra h3.sec:first-child { margin-top: 0; }
+  .xecs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+  .xecs label, .xec { display: inline-flex; gap: 5px; align-items: center; font-weight: 400 !important; font-size: 13px !important; color: var(--color-text-primary) !important; cursor: pointer; }
+  .camp.llegit input, .camp.llegit select, .camp.llegit textarea { background: #e8f5f3; }
+  .marca-llegit { font-weight: 400; font-size: 10px; background: #9fd5cc; color: #05594f; border-radius: 6px; padding: 0 5px; margin-left: 4px; }
+  .zona-pdf { border: 2px dashed var(--color-primary-teal); background: #f0f8f6; padding: 14px; text-align: center; margin-bottom: 8px; cursor: pointer; }
+  .zona-pdf.sobre { background: #dff1ee; }
+  .zona-pdf strong { color: var(--color-primary-teal-dark); }
+  .estat-lectura { font-size: 13px; margin-bottom: 8px; }
+  .fila-especie { display: grid; grid-template-columns: 2fr 80px 80px 80px auto; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .fila-especie input { padding: 5px 8px; }
+  .taula td:first-child { white-space: nowrap; }
+  .fila-especie .t { font-size: 11px; color: var(--color-text-secondary); }
+  @media (max-width: 700px) { .fila-especie { grid-template-columns: 1fr 1fr; } .fases { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     CAPÇALERA I NAVEGACIÓ
+     ============================================================ -->
+<header class="app-header">
+  <div class="brand" data-modul="inici" title="Inici">
+    <div class="brand-logo">MS</div>
+    <span>Motor de Sancionadors de la DGPAMN</span>
+  </div>
+  <button type="button" id="btn-usuari" class="usuari-cap" title="Persona i perfil">👤 Identifica't</button>
+</header>
+<nav class="module-nav">
+  <button type="button" class="nav-button active" data-modul="inici">INICI</button>
+  <button type="button" class="nav-button" data-modul="tramitacio">TRAMITACIÓ<span id="nav-badge-tram" class="nav-badge" hidden></span></button>
+  <button type="button" class="nav-button" data-modul="recursos">RECURSOS<span id="nav-badge-rec" class="nav-badge" hidden></span></button>
+  <button type="button" class="nav-button" data-modul="dades">DADES</button>
+</nav>
+<div id="barra-carpeta" class="barra-carpeta"></div>
+
+<main class="container">
+  <div id="estat-carrega" class="info-box">Carregant les dades dels expedients…</div>
+
+  <!-- ============================================================
+       INICI
+       ============================================================ -->
+  <section id="module-inici" class="module active" aria-labelledby="t-inici">
+    <div class="cap-modul benvinguda">
+      <div>
+        <h1 id="t-inici">Motor de Sancionadors</h1>
+        <p id="inici-intro">Tramitació dels expedients sancionadors de la Direcció General de Polítiques Ambientals i Medi Natural.</p>
+      </div>
+      <div class="accions-modul" id="inici-accions"></div>
+    </div>
+    <div class="home-moduls">
+      <button type="button" class="modul-card" data-modul="tramitacio">
+        <span class="ico">⚖️</span><h2>Tramitació de sancions</h2>
+        <p>Entrada de la denúncia, validació jurídica, informe tècnic, incoació, instrucció i resolució.</p>
+        <ul id="home-tram"></ul><span class="anar">Obre la tramitació →</span>
+      </button>
+      <button type="button" class="modul-card" data-modul="recursos">
+        <span class="ico">📑</span><h2>Recursos</h2>
+        <p>Recursos presentats contra expedients incoats o resolts, amb els seus informes i la seva resolució.</p>
+        <ul id="home-rec"></ul><span class="anar">Obre els recursos →</span>
+      </button>
+      <button type="button" class="modul-card" data-modul="dades">
+        <span class="ico">📊</span><h2>Dades</h2>
+        <p>Consulta i filtra els sancionadors per territori, temàtica, data, gravetat, denunciant i altres criteris.</p>
+        <ul id="home-dades"></ul><span class="anar">Obre les dades →</span>
+      </button>
+    </div>
+    <div class="dues-col">
+      <div class="targeta"><div class="targeta-cap"><h2 id="t-safata">Pendents</h2><span id="n-safata" class="text-small text-muted"></span></div><ul id="safata" class="safata"></ul></div>
+      <div class="targeta"><div class="targeta-cap"><h2>Avisos de terminis</h2><span id="n-avisos" class="text-small text-muted"></span></div><ul id="avisos-home" class="safata"></ul></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MÒDUL 1: TRAMITACIÓ
+       ============================================================ -->
+  <section id="module-tramitacio" class="module" aria-labelledby="t-tram">
+    <div class="cap-modul">
+      <div>
+        <h1 id="t-tram">Tramitació de sancions</h1>
+        <p>Cada expedient passa per la validació inicial del jurídic, l'informe tècnic, la incoació i instrucció, i la resolució. Cada canvi queda registrat amb la persona i el perfil que l'ha fet.</p>
+      </div>
+      <div class="accions-modul">
+        <button type="button" class="btn btn-primary" id="btn-nova">＋ Nova denúncia</button>
+      </div>
+    </div>
+    <div class="layout-patrimoni">
+      <aside class="panell-llista" aria-label="Expedients">
+        <div class="llista-eines">
+          <input type="search" id="tr-cerca" placeholder="Cerca per expedient, acta, municipi, persona…" aria-label="Cerca expedients">
+          <select id="tr-estat" aria-label="Filtra per estat"></select>
+          <label class="text-small"><input type="checkbox" id="tr-meus"> Només els que em toquen</label>
+        </div>
+        <div id="tr-recompte" class="llista-recompte"></div>
+        <ul id="tr-llista" class="llista-immobles"></ul>
+      </aside>
+      <section id="tr-fitxa" class="panell-fitxa" aria-live="polite">
+        <div class="fitxa-buida">Selecciona un expedient de la llista o entra una denúncia nova.</div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MÒDUL 2: RECURSOS
+       ============================================================ -->
+  <section id="module-recursos" class="module" aria-labelledby="t-rec">
+    <div class="cap-modul">
+      <div>
+        <h1 id="t-rec">Recursos</h1>
+        <p>Tria un expedient incoat o resolt per afegir-hi un recurs. Cada recurs pot demanar els seus informes tècnics i té la seva pròpia resolució.</p>
+      </div>
+      <div class="accions-modul">
+        <button type="button" class="btn btn-primary" id="btn-nou-recurs">＋ Nou recurs</button>
+      </div>
+    </div>
+    <div class="layout-patrimoni">
+      <aside class="panell-llista" aria-label="Recursos">
+        <div class="llista-eines">
+          <input type="search" id="rc-cerca" placeholder="Cerca per expedient, recurrent…" aria-label="Cerca recursos">
+          <select id="rc-estat" aria-label="Filtra per estat"></select>
+        </div>
+        <div id="rc-recompte" class="llista-recompte"></div>
+        <ul id="rc-llista" class="llista-immobles"></ul>
+      </aside>
+      <section id="rc-fitxa" class="panell-fitxa" aria-live="polite">
+        <div class="fitxa-buida">Selecciona un recurs de la llista o afegeix-ne un de nou.</div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MÒDUL 3: DADES
+       ============================================================ -->
+  <section id="module-dades" class="module" aria-labelledby="t-dades">
+    <div class="cap-modul">
+      <div>
+        <h1 id="t-dades">Dades dels sancionadors</h1>
+        <p>Filtra els expedients per qualsevol criteri. El mapa, els indicadors i la taula es recalculen amb els expedients filtrats. Aquest mòdul no mostra dades personals.</p>
+      </div>
+      <div class="accions-modul"><button type="button" class="btn btn-secondary" id="btn-csv">Exporta a CSV</button></div>
+    </div>
+    <div class="layout-dades">
+      <aside class="panell-filtres" aria-label="Filtres">
+        <div class="filtres-cap"><strong>Filtres</strong><button type="button" class="btn-link" id="btn-neteja">Neteja-ho tot</button></div>
+        <div class="filtres-cerca"><input type="search" id="dades-cerca" placeholder="Cerca lliure (expedient, municipi, fets…)" aria-label="Cerca lliure"></div>
+        <div id="filtres"></div>
+      </aside>
+      <section class="panell-resultats">
+        <div id="chips-filtres" class="chips" aria-label="Filtres actius"></div>
+        <div id="kpis" class="kpis"></div>
+        <div class="targeta">
+          <div class="targeta-cap"><h2>Mapa dels fets denunciats</h2><span id="mapa-nota" class="text-small text-muted"></span></div>
+          <div id="mapa-dades" class="mapa-dades" role="region" aria-label="Mapa dels expedients filtrats"></div>
+        </div>
+        <div class="dues-col">
+          <div class="targeta"><h2>Per temàtica</h2><div id="dist-tematica" class="barres"></div></div>
+          <div class="targeta"><h2>Per àmbit territorial</h2><div id="dist-ambit" class="barres"></div></div>
+          <div class="targeta"><h2>Per estat</h2><div id="dist-estat" class="barres"></div></div>
+          <div class="targeta"><h2>Per gravetat</h2><div id="dist-qualificacio" class="barres"></div></div>
+        </div>
+        <div class="targeta">
+          <div class="targeta-cap"><h2>Expedients</h2><span id="taula-info" class="text-small text-muted"></span></div>
+          <div class="taula-wrap"><table id="taula-dades" class="taula"></table></div>
+        </div>
+      </section>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  Direcció General de Polítiques Ambientals i Medi Natural · Motor de Sancionadors · <span id="peu-info"></span>
+</footer>
+<datalist id="dl-especies"></datalist>
+<datalist id="dl-tecnics"></datalist>
+<div id="toasts" aria-live="polite"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════════════════
+// CONFIGURACIÓ
+//   · Dades de referència i inicials: GitHub (marcvila1/sancionadors/data)
+//   · Unitats promotores: les del Motor de Contractació (sense còpia)
+//   · Carpeta de treball: subcarpeta «sancionadors» d'una carpeta local o
+//     sincronitzada (SharePoint/OneDrive), triada per cada usuari
+//   · Paràmetres opcionals a l'URL: ?dades=<url carpeta data/>&unitats=<url json>
+// ════════════════════════════════════════════════════════════════════
+const QS = new URLSearchParams(location.search);
+/**
+ * Seguretat: els paràmetres ?dades= i ?unitats= només poden apuntar al mateix lloc des d'on s'obre el programa
+ * o als repositoris de la DGPAMN al GitHub. Qualsevol altra adreça s'ignora.
+ */
+const ORIGENS_DADES = ['https://raw.githubusercontent.com/marcvila1/'];
+const FONTS_REBUTJADES = [];
+function fontSegura(valor, perDefecte) {
+  if (!valor) return perDefecte;
+  try {
+    const u = new URL(valor, location.href);
+    if (!['https:', 'http:', 'file:'].includes(u.protocol) || u.username || u.password) throw 0;
+    const mateix = location.protocol !== 'file:' && u.origin === location.origin;
+    const fitxerLocal = location.protocol === 'file:' && u.protocol === 'file:';
+    if (mateix || fitxerLocal || ORIGENS_DADES.some(o => u.href.startsWith(o))) return u.href;
+  } catch { /* adreça no vàlida */ }
+  FONTS_REBUTJADES.push(valor);
+  return perDefecte;
+}
+const CONFIG = {
+  DADES_URL: fontSegura(QS.get('dades'), 'https://raw.githubusercontent.com/marcvila1/sancionadors/main/data/'),
+  UNITATS_URL: fontSegura(QS.get('unitats'), 'https://raw.githubusercontent.com/marcvila1/Motor-Contractacio-DGPA/main/unitats_promotores.json'),
+  SUBCARPETA: 'sancionadors',
+  CARPETA_ACTES: 'actes',
+  FITXERS: ['expedients.json', 'persones.json', 'catalegs.json', 'variables.json', 'historial_canvis.json', 'metadata.json'],
+  CARPETA_INFORMES: 'informes_car',
+  DEFECTES: { 'expedients.json': [], 'persones.json': [], 'historial_canvis.json': [], 'metadata.json': {} },
+  PDFJS: {
+    lib: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',
+    libSri: 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e',
+    worker: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+    workerSri: 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2',
+  },
+  VERSIO: '0.2',
+};
+
+// ════════════════════════════════════════════════════════════════════
+// UTILITATS
+// ════════════════════════════════════════════════════════════════════
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+/**
+ * Seguretat (OWASP A03): només s'accepten adreces http(s), camins relatius i imatges o documents incrustats d'un tipus permès.
+ * Qualsevol altra (javascript:, data:text/html, vbscript:…) es converteix en '#' i no fa res.
+ */
+const DATA_IMATGE = /^data:image\/(jpeg|png|webp|gif);base64,[a-z0-9+/=\s]+$/i;
+const DATA_DOC = /^data:(application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document|vnd\.google-earth\.kml\+xml|vnd\.google-earth\.kmz|octet-stream)|text\/xml|application\/xml)?(;[a-z0-9=._-]+)*;base64,[a-z0-9+/=\s]+$/i;
+function urlSegura(u, tipus = 'enllac') {
+  const t = String(u ?? '').trim();
+  if (!t) return '#';
+  if (/^blob:/i.test(t)) return t;
+  if (/^data:/i.test(t)) return (tipus === 'imatge' ? DATA_IMATGE : tipus === 'document' ? DATA_DOC : null)?.test(t) ? t : '#';
+  if (/^(https?:|mailto:)/i.test(t)) return /^mailto:/i.test(t) && tipus !== 'correu' ? '#' : t;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(t)) return '#';   // qualsevol altre esquema
+  return t;                                         // camí relatiu
+}
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+const NF = new Intl.NumberFormat('ca-ES');
+const fmtNum = n => (n == null || n === '' ? '' : NF.format(n));
+const ara = () => new Date().toISOString();
+const buit = v => v == null || v === '' || (Array.isArray(v) && v.length === 0);
+const ordCa = (a, b) => String(a).localeCompare(String(b), 'ca', { sensitivity: 'base' });
+
+function get(o, p) { return p.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o); }
+function set(o, p, v) {
+  const ks = p.split('.');
+  let a = o;
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (a[ks[i]] == null || typeof a[ks[i]] !== 'object') a[ks[i]] = /^\d+$/.test(ks[i + 1]) ? [] : {};
+    a = a[ks[i]];
+  }
+  a[ks[ks.length - 1]] = v;
+}
+function fmtData(iso) {
+  if (!iso) return '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(iso + 'T00:00:00').toLocaleDateString('ca-ES');
+  const d = new Date(iso);
+  return isNaN(d) ? String(iso) : d.toLocaleString('ca-ES', { dateStyle: 'short', timeStyle: 'short' });
+}
+function toast(msg, tipus = 'ok', ms = 4500) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (tipus === 'ok' ? '' : tipus);
+  t.textContent = msg;
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+function descarrega(nom, contingut, tipus = 'application/json') {
+  const blob = new Blob([contingut], { type: tipus });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nom;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/** Finestra modal amb l'estil del Motor. Retorna una promesa amb l'acció triada (o null). */
+function finestra({ titol, etiqueta, cos, botons, ampla = false, enObrir }) {
+  return new Promise(resol => {
+    const fons = document.createElement('div');
+    fons.className = 'finestra-fons';
+    fons.innerHTML = `<div class="finestra ${ampla ? 'ampla' : ''}" role="dialog" aria-modal="true" aria-labelledby="fin-titol">
+        <div class="fc-cap" id="fin-titol">${titol}${etiqueta ? ` <small>${esc(etiqueta)}</small>` : ''}</div>
+        <div class="fc-cos">${cos}</div>
+        <div class="fc-peu">${botons.map(b => `<button type="button" class="${b.principal ? 'fc-principal' : 'fc-secundari'}" data-accio="${b.accio}">${esc(b.text)}</button>`).join('')}</div>
+      </div>`;
+    const tanca = accio => { fons.remove(); document.removeEventListener('keydown', tecla); resol(accio); };
+    const tecla = e => { if (e.key === 'Escape') tanca(null); };
+    fons.addEventListener('click', e => {
+      const b = e.target.closest('[data-accio]');
+      if (!b) return;
+      const accio = b.dataset.accio;
+      const def = botons.find(x => x.accio === accio);
+      if (def?.validar && !def.validar(fons)) return;
+      tanca(def?.recull ? { accio, dades: def.recull(fons) } : accio);
+    });
+    document.addEventListener('keydown', tecla);
+    document.body.appendChild(fons);
+    (fons.querySelector('input,select,textarea') || fons.querySelector('.fc-principal'))?.focus();
+    enObrir?.(fons);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// COORDENADES: ETRS89 / UTM fus 31N (EPSG:25831) ⇄ lat/lon
+//   Fórmules de Snyder; verificades amb pyproj (error < 1 mm a Catalunya)
+// ════════════════════════════════════════════════════════════════════
+const UTM = (() => {
+  const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, E0 = 500000;
+  const e2 = f * (2 - f), e4 = e2 * e2, e6 = e4 * e2, ep2 = e2 / (1 - e2);
+  const lon0 = 3 * Math.PI / 180, D2R = Math.PI / 180;
+  const m = phi => a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * phi
+    - (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * phi)
+    + (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * phi) - (35 * e6 / 3072) * Math.sin(6 * phi));
+  function aLatLon(x, y) {
+    const mu = (y / k0) / (a * (1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256));
+    const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+    const p1 = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
+      + (151 * e1 ** 3 / 96) * Math.sin(6 * mu) + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+    const s = Math.sin(p1), c = Math.cos(p1), t = Math.tan(p1);
+    const C1 = ep2 * c * c, T1 = t * t, N1 = a / Math.sqrt(1 - e2 * s * s);
+    const R1 = a * (1 - e2) / Math.pow(1 - e2 * s * s, 1.5), D = (x - E0) / (N1 * k0);
+    const lat = p1 - (N1 * t / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4 / 24
+      + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6 / 720);
+    const lon = lon0 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5 / 120) / c;
+    return [lat / D2R, lon / D2R];
+  }
+  function aUTM(latDeg, lonDeg) {
+    const phi = latDeg * D2R, lam = lonDeg * D2R;
+    const s = Math.sin(phi), c = Math.cos(phi), t = Math.tan(phi);
+    const N = a / Math.sqrt(1 - e2 * s * s), T = t * t, C = ep2 * c * c, A = (lam - lon0) * c;
+    const x = k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120) + E0;
+    const y = k0 * (m(phi) + N * t * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
+    return [Math.round(x), Math.round(y)];
+  }
+  return { aLatLon, aUTM };
+})();
+
+const avui = () => new Date().toISOString().slice(0, 10);
+const fmtEur = n => (n == null || n === '' ? '—' : new Intl.NumberFormat('ca-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n));
+function sumaDies(iso, dies) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + dies); return d.toISOString().slice(0, 10); }
+function sumaMesos(iso, mesos) { const d = new Date(iso + 'T00:00:00'); d.setMonth(d.getMonth() + mesos); return d.toISOString().slice(0, 10); }
+function diesFins(iso) { return Math.round((new Date(iso + 'T00:00:00') - new Date(avui() + 'T00:00:00')) / 86400000); }
+const norm = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// ════════════════════════════════════════════════════════════════════
+// ESTAT GLOBAL
+// ════════════════════════════════════════════════════════════════════
+const S = {
+  exp: [], persones: [], cat: {}, vars: {}, historial: [], meta: {}, unitats: {}, unitatsRaw: null,
+  usuari: null, pendents: 0, font: 'github', selExp: null, selRec: null,
+};
+
+// ════════════════════════════════════════════════════════════════════
+// CARPETA DE TREBALL (com al Motor de Contractació i al Motor Patrimoni)
+// ════════════════════════════════════════════════════════════════════
+const Carpeta = (() => {
+  const DB = 'motor-sancionadors', STORE = 'carpeta', CLAU = 'arrel';
+  let arrel = null;
+  const copiesFetes = new Set();
+  const disponible = () => typeof window.showDirectoryPicker === 'function';
+  function idb(mode, fn) {
+    return new Promise((ok, ko) => {
+      const r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+      r.onerror = () => ko(r.error);
+      r.onsuccess = () => {
+        const tx = r.result.transaction(STORE, mode);
+        const req = fn(tx.objectStore(STORE));
+        tx.oncomplete = () => ok(req && req.result);
+        tx.onerror = () => ko(tx.error);
+      };
+    });
+  }
+  const subcarpeta = () => arrel.getDirectoryHandle(CONFIG.SUBCARPETA, { create: true });
+  async function llegeix(nom, dir) {
+    dir = dir || await subcarpeta();
+    try { return JSON.parse(await (await (await dir.getFileHandle(nom)).getFile()).text()); }
+    catch (e) { if (e.name === 'NotFoundError') return undefined; throw new Error(`No s'ha pogut llegir ${nom}: ${e.message}`); }
+  }
+  async function escriu(nom, obj, dir) {
+    dir = dir || await subcarpeta();
+    const w = await (await dir.getFileHandle(nom, { create: true })).createWritable();
+    await w.write(JSON.stringify(obj, null, 2) + '\n');
+    await w.close();
+  }
+  async function llegeixTot() {
+    const dir = await subcarpeta(), d = {};
+    for (const nom of CONFIG.FITXERS) { const v = await llegeix(nom, dir); if (v !== undefined) d[nom] = v; }
+    return d;
+  }
+  async function importa() {
+    const dir = await subcarpeta(), d = dadesActuals();
+    for (const nom of CONFIG.FITXERS) if (d[nom] !== undefined) await escriu(nom, d[nom], dir);
+  }
+  async function copiaSeguretat(dir, nom, llista) {
+    if (copiesFetes.has(nom)) return;
+    const copies = await dir.getDirectoryHandle('copies', { create: true });
+    const marca = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    await escriu(`${nom.replace('.json', '')}_${marca}.json`, llista, copies);
+    copiesFetes.add(nom);
+  }
+  /** Desa un registre amb identificador PREFIX-NNNN i control de versió. Rellegeix el fitxer just abans d'escriure. */
+  async function desaRegistre(nom, prefix, obj, versioEsperada, esAlta) {
+    const dir = await subcarpeta();
+    const llista = (await llegeix(nom, dir)) || [];
+    await copiaSeguretat(dir, nom, llista);
+    if (esAlta) {
+      const n = Math.max(0, ...llista.filter(x => x.id?.startsWith(prefix)).map(x => +x.id.slice(prefix.length) || 0));
+      obj.id = prefix + String(n + 1).padStart(4, '0');
+      llista.push(obj);
+    } else {
+      const i = llista.findIndex(x => x.id === obj.id);
+      if (i < 0) throw Object.assign(new Error(`${obj.id} ja no existeix a la carpeta.`), { conflicte: true });
+      if ((llista[i].versio || 0) !== versioEsperada) throw Object.assign(new Error(`${llista[i].modificat_per || 'Una altra persona'} ha modificat ${obj.id} (${fmtData(llista[i].modificat)}) després que l'obrissis.`), { conflicte: true });
+      llista[i] = obj;
+    }
+    await escriu(nom, llista, dir);
+    return { llista, obj };
+  }
+  async function afegeixHistorial(entrada) {
+    const dir = await subcarpeta();
+    const h = (await llegeix('historial_canvis.json', dir)) || [];
+    h.push(entrada);
+    await escriu('historial_canvis.json', h, dir);
+    return h;
+  }
+  async function escriuBlob(cami, blob) {
+    let dir = await subcarpeta();
+    const parts = cami.split('/');
+    for (const p of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(p, { create: true });
+    const w = await (await dir.getFileHandle(parts.at(-1), { create: true })).createWritable();
+    await w.write(blob); await w.close();
+  }
+  async function llegeixBlob(cami) {
+    try {
+      let dir = await subcarpeta();
+      const parts = cami.split('/');
+      for (const p of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(p);
+      return await (await dir.getFileHandle(parts.at(-1))).getFile();
+    } catch { return null; }
+  }
+
+  function pinta(estat, nom) {
+    const b = $('#barra-carpeta');
+    const boto = (accio, text) => `<button type="button" class="btn-carpeta" data-carpeta="${accio}">${text}</button>`;
+    const pend = S.pendents ? ` <span class="pendents-desar">⚠ ${S.pendents} ${S.pendents === 1 ? 'canvi' : 'canvis'} sense desar en cap carpeta</span>` : '';
+    const descarregar = S.pendents ? boto('descarrega', 'Descarrega els fitxers') : '';
+    b.className = 'barra-carpeta ' + estat;
+    b.innerHTML = {
+      connectada: `📁 Dades a la carpeta <strong>${esc(nom)}\\${CONFIG.SUBCARPETA}</strong> · ${S.exp.length} expedients · els canvis es desen directament a la carpeta
+        <span class="botons">${boto('recarrega', 'Recarrega')}${boto('connectar', 'Canvia la carpeta')}</span>`,
+      permis: `📁 Cal tornar a donar permís a la carpeta <strong>${esc(nom)}</strong>.${pend} <span class="botons">${descarregar}${boto('reconnectar', 'Permet l’accés')}</span>`,
+      cap: `📁 Les dades es llegeixen del GitHub. Per desar canvis, connecta una carpeta de treball.${pend} <span class="botons">${descarregar}${boto('connectar', 'Connecta la carpeta')}</span>`,
+      noDisponible: `📁 Per desar els canvis en una carpeta cal obrir el programa amb Chrome o Edge. Els canvis es poden descarregar.${pend} <span class="botons">${descarregar}</span>`,
+    }[estat];
+    Carpeta.estat = estat;
+  }
+  const repinta = () => pinta(Carpeta.estat || 'cap', arrel?.name);
+  async function activa(h) { arrel = h; S.font = 'carpeta'; await recarregaDades(); pinta('connectada', h.name); }
+  async function connectar() {
+    try {
+      const h = await window.showDirectoryPicker({ id: 'motor-sancionadors', mode: 'readwrite' });
+      await idb('readwrite', s => s.put(h, CLAU));
+      arrel = h;
+      const existent = await llegeix('expedients.json');
+      if (existent === undefined) {
+        if (S.pendents || confirm(`La carpeta «${h.name}\\${CONFIG.SUBCARPETA}» no té dades dels sancionadors.\n\nVols copiar-hi les dades que hi ha ara (${S.exp.length} expedients)?`)) await importa();
+        else { arrel = null; return; }
+      } else if (S.pendents && !confirm(`Tens ${S.pendents} canvis fets sense carpeta. La carpeta ja té dades i aquests canvis no s'hi copiaran.\n\nDescarrega'ls primer si els vols conservar. Vols continuar igualment?`)) { arrel = null; return; }
+      S.pendents = 0;
+      await activa(h);
+      toast(`Carpeta connectada: ${h.name}\\${CONFIG.SUBCARPETA}`);
+    } catch (e) {
+      if (e.name !== 'AbortError') toast('No s’ha pogut connectar la carpeta: ' + e.message, 'error', 8000);
+    }
+  }
+  async function reconnectar() {
+    const h = await idb('readonly', s => s.get(CLAU));
+    if (!h) return connectar();
+    if (await h.requestPermission({ mode: 'readwrite' }) === 'granted') await activa(h);
+  }
+  let finestraPendent = null;
+  async function inicia() {
+    if (!disponible()) { pinta('noDisponible'); return; }
+    try {
+      const h = await idb('readonly', s => s.get(CLAU));
+      if (!h) { pinta('cap'); return; }
+      if (await h.queryPermission({ mode: 'readwrite' }) === 'granted') { arrel = h; S.font = 'carpeta'; Carpeta.estat = 'connectada'; }
+      else { pinta('permis', h.name); finestraPendent = h.name; }
+    } catch (e) { console.warn('Carpeta:', e); pinta('cap'); }
+  }
+  function finestraInicial() {
+    if (!finestraPendent) return;
+    const nom = finestraPendent; finestraPendent = null;
+    finestra({ titol: '📁 Carpeta de treball',
+      cos: `<p>La darrera vegada vau treballar amb la carpeta <strong>${esc(nom)}</strong>.</p><p>Per seguretat, el navegador demana tornar a donar permís cada vegada que s'obre el programa.</p>
+        <div class="fc-nota">Si no doneu permís, podreu consultar les dades del GitHub però no desar canvis a la carpeta.</div>`,
+      botons: [{ text: 'Ara no', accio: 'no' }, { text: "Permet l'accés", accio: 'si', principal: true }] }).then(a => { if (a === 'si') reconnectar(); });
+  }
+  $('#barra-carpeta').addEventListener('click', e => {
+    const a = e.target.closest('[data-carpeta]')?.dataset.carpeta;
+    if (a === 'connectar') connectar();
+    else if (a === 'reconnectar') reconnectar();
+    else if (a === 'recarrega') recarregaDades().then(() => { repinta(); toast('Dades recarregades de la carpeta.'); });
+    else if (a === 'descarrega') descarregaPendents();
+  });
+  return { disponible, inicia, finestraInicial, llegeixTot, desaRegistre, afegeixHistorial, escriuBlob, llegeixBlob, pinta, repinta,
+    activa: () => !!arrel, estat: null };
+})();
+
+function dadesActuals() {
+  return { 'expedients.json': S.exp, 'persones.json': S.persones, 'catalegs.json': S.cat, 'variables.json': S.vars,
+    'historial_canvis.json': S.historial, 'metadata.json': S.meta };
+}
+function descarregaPendents() {
+  const noms = ['expedients.json', 'persones.json', 'historial_canvis.json'], d = dadesActuals();
+  noms.forEach((n, i) => setTimeout(() => descarrega(n, JSON.stringify(d[n], null, 2) + '\n'), i * 400));
+  toast(`S’han descarregat ${noms.join(', ')}. Substitueix-los a la carpeta de dades.`, 'ok', 9000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CÀRREGA DE DADES
+// ════════════════════════════════════════════════════════════════════
+async function fetchJSON(url, perDefecte) {
+  try {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch (e) {
+    if (perDefecte !== undefined) return perDefecte;
+    throw new Error(`${url.split('/').pop().split('?')[0]}: ${e.message}`);
+  }
+}
+/**
+ * Còpia de les dades de referència dins del mateix programa. Es fa servir quan no es poden llegir de cap altra font
+ * (repositori encara buit, sense connexió o fitxer obert des de l'ordinador), perquè el programa no es quedi sense
+ * comarques, matèries ni estats.
+ */
+const DADES_INCRUSTADES = {"catalegs.json": {"_nota": "Llistes per als desplegables i els filtres. Les que porten «_revisar» s'han de validar abans de treballar amb dades reals.", "materies_car": [{"codi": "forestal", "etiqueta": "Forestal", "camp_pdf": "Forestal"}, {"codi": "caca", "etiqueta": "Caça", "camp_pdf": "Caca"}, {"codi": "pesca", "etiqueta": "Pesca", "camp_pdf": "Pesca"}, {"codi": "espais_naturals", "etiqueta": "Espais naturals", "camp_pdf": "EspaisNaturals"}, {"codi": "proteccio_animals", "etiqueta": "Protecció d'animals", "camp_pdf": "ProteccioAnimals"}, {"codi": "acces_motoritzat", "etiqueta": "Accés motoritzat", "camp_pdf": "AccesMoto"}, {"codi": "prevencio_incendis", "etiqueta": "Prevenció d'incendis", "camp_pdf": "PrevencioIncendis"}, {"codi": "aigues", "etiqueta": "Aigües", "camp_pdf": "Aigues"}, {"codi": "residus", "etiqueta": "Residus", "camp_pdf": "Residus"}, {"codi": "altres", "etiqueta": "Altres", "camp_pdf": "Altres"}], "tematiques": [{"codi": "fauna_protegida", "etiqueta": "Fauna protegida"}, {"codi": "flora_protegida", "etiqueta": "Flora protegida"}, {"codi": "habitats", "etiqueta": "Hàbitats d'interès comunitari"}, {"codi": "enp_activitats", "etiqueta": "Activitats no autoritzades en espais naturals protegits"}, {"codi": "enp_acces", "etiqueta": "Accés motoritzat i circulació en espais naturals protegits"}, {"codi": "enp_obres", "etiqueta": "Obres, instal·lacions i transformació del terreny en ENP"}, {"codi": "especies_invasores", "etiqueta": "Espècies exòtiques invasores"}, {"codi": "altres", "etiqueta": "Altres"}], "tipus_denunciant": [{"codi": "CAR", "etiqueta": "Cos d'Agents Rurals"}, {"codi": "MOSSOS", "etiqueta": "Mossos d'Esquadra"}, {"codi": "GUARDIA_CIVIL", "etiqueta": "Guàrdia Civil (SEPRONA)"}, {"codi": "POLICIA_LOCAL", "etiqueta": "Policia local"}, {"codi": "GUARDA_ENP", "etiqueta": "Personal d'un espai natural protegit"}, {"codi": "PARTICULAR", "etiqueta": "Particular o entitat"}, {"codi": "OFICI", "etiqueta": "D'ofici"}], "qualificacions": [{"codi": "lleu", "etiqueta": "Lleu"}, {"codi": "greu", "etiqueta": "Greu"}, {"codi": "molt_greu", "etiqueta": "Molt greu"}], "resultats_validacio": [{"codi": "admesa", "etiqueta": "Admesa: es demana l'informe tècnic"}, {"codi": "no_competencia", "etiqueta": "No és competència de la DG: es deriva"}, {"codi": "arxiu", "etiqueta": "Arxiu (fets no constitutius d'infracció, prescripció…)"}], "sentits_resolucio": [{"codi": "sancio", "etiqueta": "Imposició de sanció"}, {"codi": "sobreseiment", "etiqueta": "Sobreseïment i arxiu"}, {"codi": "caducitat", "etiqueta": "Declaració de caducitat"}], "mesures_accessories": [{"codi": "reparacio", "etiqueta": "Reparació o restitució del medi"}, {"codi": "indemnitzacio", "etiqueta": "Indemnització pels danys"}, {"codi": "decomis", "etiqueta": "Decomís"}, {"codi": "inhabilitacio", "etiqueta": "Inhabilitació o retirada d'autorització"}], "tipus_recurs": [{"codi": "alcada", "etiqueta": "Recurs d'alçada", "mesos_resoldre": 3}, {"codi": "reposicio", "etiqueta": "Recurs potestatiu de reposició", "mesos_resoldre": 1}, {"codi": "revisio", "etiqueta": "Recurs extraordinari de revisió", "mesos_resoldre": 3}, {"codi": "contencios", "etiqueta": "Recurs contenciós administratiu (seguiment)", "mesos_resoldre": null}], "sentits_recurs": [{"codi": "estimat", "etiqueta": "Estimat"}, {"codi": "estimat_parcial", "etiqueta": "Estimat en part"}, {"codi": "desestimat", "etiqueta": "Desestimat"}, {"codi": "inadmes", "etiqueta": "Inadmès"}], "tipificacions": [], "_tipificacions_format": {"id": "T-001", "norma": "", "article": "", "descripcio": "", "qualificacio": "lleu | greu | molt_greu", "import_minim": 0, "import_maxim": 0, "tematica": ""}, "especies": [{"nom": "Oca de galta blanca (Branta leucopsis)"}], "comarques": [{"nom": "Alt Camp", "ambit": "STTGN"}, {"nom": "Alt Empordà", "ambit": "STGIR"}, {"nom": "Alt Penedès", "ambit": "STPE"}, {"nom": "Alt Urgell", "ambit": "STAPA"}, {"nom": "Alta Ribagorça", "ambit": "STAPA"}, {"nom": "Anoia", "ambit": "STPE"}, {"nom": "Aran", "ambit": "STAPA"}, {"nom": "Bages", "ambit": "STCC"}, {"nom": "Baix Camp", "ambit": "STTGN"}, {"nom": "Baix Ebre", "ambit": "STEBR"}, {"nom": "Baix Empordà", "ambit": "STGIR"}, {"nom": "Baix Llobregat", "ambit": "STBCN"}, {"nom": "Baix Penedès", "ambit": "STPE"}, {"nom": "Barcelonès", "ambit": "STBCN"}, {"nom": "Berguedà", "ambit": "STCC"}, {"nom": "Cerdanya", "ambit": "STAPA"}, {"nom": "Conca de Barberà", "ambit": "STTGN"}, {"nom": "Garraf", "ambit": "STPE"}, {"nom": "Garrigues", "ambit": "STLLE"}, {"nom": "Garrotxa", "ambit": "STGIR"}, {"nom": "Gironès", "ambit": "STGIR"}, {"nom": "Lluçanès", "ambit": "STCC"}, {"nom": "Maresme", "ambit": "STBCN"}, {"nom": "Moianès", "ambit": "STCC"}, {"nom": "Montsià", "ambit": "STEBR"}, {"nom": "Noguera", "ambit": "STLLE"}, {"nom": "Osona", "ambit": "STCC"}, {"nom": "Pallars Jussà", "ambit": "STAPA"}, {"nom": "Pallars Sobirà", "ambit": "STAPA"}, {"nom": "Pla d'Urgell", "ambit": "STLLE"}, {"nom": "Pla de l'Estany", "ambit": "STGIR"}, {"nom": "Priorat", "ambit": "STTGN"}, {"nom": "Ribera d'Ebre", "ambit": "STEBR"}, {"nom": "Ripollès", "ambit": "STGIR"}, {"nom": "Segarra", "ambit": "STLLE"}, {"nom": "Segrià", "ambit": "STLLE"}, {"nom": "Selva", "ambit": "STGIR"}, {"nom": "Solsonès", "ambit": "STCC"}, {"nom": "Tarragonès", "ambit": "STTGN"}, {"nom": "Terra Alta", "ambit": "STEBR"}, {"nom": "Urgell", "ambit": "STLLE"}, {"nom": "Vallès Occidental", "ambit": "STBCN"}, {"nom": "Vallès Oriental", "ambit": "STBCN"}], "_comarques_revisar": "Correspondència comarca → àmbit territorial (codi d'unitat dels Serveis Territorials del Motor de Contractació). Cal validar-la."}, "variables.json": {"perfils": {"juridic": {"etiqueta": "Jurídic/a", "descripcio": "Gestiona el tràmit: valida l'entrada, demana els informes tècnics, incoa, instrueix, resol i tramita els recursos."}, "tecnic": {"etiqueta": "Tècnic/a", "descripcio": "Redacta els informes tècnics que li assignen i que donen suport al tràmit jurídic."}, "consulta": {"etiqueta": "Consulta", "descripcio": "Pot consultar els expedients i el mòdul de dades, sense fer canvis."}}, "estats_expedient": {"entrada": {"etiqueta": "Pendent de validació", "fase": 1, "responsable": "juridic"}, "informe_tecnic": {"etiqueta": "Informe tècnic demanat", "fase": 2, "responsable": "tecnic"}, "informe_lliurat": {"etiqueta": "Informe lliurat · pendent d'incoació", "fase": 3, "responsable": "juridic"}, "instruccio": {"etiqueta": "Incoat · en instrucció", "fase": 3, "responsable": "juridic"}, "resolt": {"etiqueta": "Resolt", "fase": 4, "responsable": null}, "arxivat": {"etiqueta": "Arxivat o derivat", "fase": 4, "responsable": null}}, "transicions": {"juridic": {"entrada": ["informe_tecnic", "arxivat"], "informe_lliurat": ["instruccio", "informe_tecnic", "arxivat"], "instruccio": ["resolt", "arxivat"]}, "tecnic": {}, "consulta": {}}, "estats_informe": {"demanat": "Demanat", "en_curs": "En redacció", "lliurat": "Lliurat"}, "estats_recurs": {"presentat": "Pendent de tràmit jurídic", "informe": "Informe tècnic demanat", "resolt": "Resolt"}, "terminis": {"_revisar": "Terminis per als avisos. Cal que l'assessoria jurídica en validi els valors.", "dies_informe_tecnic": 15, "mesos_caducitat_procediment": 6, "dies_avis_abans": 15}, "estats_que_admeten_recurs": ["instruccio", "resolt"]}};
+/** Fonts per ordre: carpeta de treball → carpeta data/ al costat del programa → GitHub → còpia incrustada. */
+function fontsDades() {
+  const f = [];
+  if (location.protocol !== 'file:' && !QS.get('dades')) f.push(new URL('data/', location.href).href);
+  f.push(CONFIG.DADES_URL);
+  return f;
+}
+const ORIGEN_FITXER = {};
+async function llegeixDeFonts(nom) {
+  for (const base of fontsDades()) {
+    const v = await fetchJSON(base + nom, null);
+    if (v != null) { ORIGEN_FITXER[nom] = base === CONFIG.DADES_URL ? 'GitHub' : 'web'; return v; }
+  }
+  if (DADES_INCRUSTADES[nom] !== undefined) { ORIGEN_FITXER[nom] = 'incrustada'; return clone(DADES_INCRUSTADES[nom]); }
+  ORIGEN_FITXER[nom] = 'buida';
+  return clone(CONFIG.DEFECTES[nom] ?? null);
+}
+async function carregaDades() {
+  let d = {};
+  if (Carpeta.activa()) {
+    try { d = await Carpeta.llegeixTot(); Object.keys(d).forEach(n => { ORIGEN_FITXER[n] = 'carpeta'; }); }
+    catch (e) { toast('No s’ha pogut llegir la carpeta; es fan servir les dades del GitHub. ' + e.message, 'error', 8000); d = {}; }
+  }
+  const falten = CONFIG.FITXERS.filter(n => d[n] === undefined);
+  const llegits = await Promise.all(falten.map(llegeixDeFonts));
+  falten.forEach((n, i) => { d[n] = llegits[i]; });
+  const incrustats = ['catalegs.json', 'variables.json'].filter(n => ORIGEN_FITXER[n] === 'incrustada');
+  if (incrustats.length) toast(`No s'han pogut llegir ${incrustats.join(' i ')} del repositori: es fa servir la còpia que porta el programa. Puja la carpeta data/ al GitHub o connecta una carpeta de treball.`, 'avis', 12000);
+  const unitats = await fetchJSON(CONFIG.UNITATS_URL, null);
+  S.exp = Array.isArray(d['expedients.json']) ? d['expedients.json'] : [];
+  S.persones = Array.isArray(d['persones.json']) ? d['persones.json'] : [];
+  S.cat = d['catalegs.json'] || {};
+  S.vars = d['variables.json'] || {};
+  S.historial = Array.isArray(d['historial_canvis.json']) ? d['historial_canvis.json'] : [];
+  S.meta = d['metadata.json'] || {};
+  S.unitatsRaw = unitats;
+  S.unitats = Object.fromEntries((unitats?.unitats || []).map(u => [u.codi, u]));
+  if (!unitats) toast("No s'han pogut llegir les unitats del Motor de Contractació: els espais naturals es mostraran pel codi.", 'avis', 9000);
+  if (FONTS_REBUTJADES.length) toast(`S'ha ignorat una font de dades no autoritzada a l'adreça. Es fan servir les dades oficials.`, 'avis', 12000);
+}
+async function recarregaDades() { await carregaDades(); refrescaTot(); }
+
+// ════════════════════════════════════════════════════════════════════
+// PERSONA I PERFIL (fins a la integració a SINATCAT)
+// ════════════════════════════════════════════════════════════════════
+const CLAU_USUARI = 'motor-sancionadors.usuari';
+const PERFILS_DEF = { juridic: 'Jurídic/a', tecnic: 'Tècnic/a', consulta: 'Consulta' };
+const perfils = () => S.vars.perfils || Object.fromEntries(Object.entries(PERFILS_DEF).map(([k, v]) => [k, { etiqueta: v }]));
+const nomPerfil = p => perfils()[p]?.etiqueta || PERFILS_DEF[p] || p || '';
+const perfil = () => S.usuari?.perfil || null;
+const esJuridic = () => perfil() === 'juridic';
+const esTecnic = () => perfil() === 'tecnic';
+function carregaUsuari() {
+  try { S.usuari = JSON.parse(localStorage.getItem(CLAU_USUARI) || 'null'); } catch { S.usuari = null; }
+  pintaUsuari();
+}
+function pintaUsuari() {
+  $('#btn-usuari').textContent = S.usuari ? `👤 ${S.usuari.nom} · ${nomPerfil(S.usuari.perfil)}` : "👤 Identifica't";
+}
+async function demanaUsuari(motiu) {
+  const ps = perfils();
+  const r = await finestra({
+    titol: '👤 Persona i perfil',
+    cos: `${motiu ? `<p>${esc(motiu)}</p>` : ''}
+      <p>Cada canvi queda registrat amb el nom i el perfil de la persona que el fa. Quan el programa s'integri a SINATCAT, aquestes dades vindran de l'usuari autenticat.</p>
+      <div class="camp"><label for="u-nom" class="required">Nom i cognoms</label><input type="text" id="u-nom" autocomplete="name" value="${esc(S.usuari?.nom || '')}"><div class="camp-error" hidden></div></div>
+      <div class="camp"><label for="u-email">Correu electrònic</label><input type="text" id="u-email" autocomplete="email" value="${esc(S.usuari?.email || '')}"></div>
+      <div class="camp"><label for="u-perfil" class="required">Perfil</label><select id="u-perfil"><option value="">—</option>${Object.entries(ps).map(([k, p]) => `<option value="${esc(k)}" ${S.usuari?.perfil === k ? 'selected' : ''}>${esc(p.etiqueta)}</option>`).join('')}</select>
+        <div class="ajuda">${Object.values(ps).map(p => `<strong>${esc(p.etiqueta)}</strong>: ${esc(p.descripcio || '')}`).join('<br>')}</div><div class="camp-error" hidden></div></div>`,
+    botons: [
+      { text: 'Cancel·la', accio: 'no' },
+      { text: 'Desa', accio: 'si', principal: true,
+        validar: fons => {
+          const err = (id, ok, msg) => { const e = $(id, fons).closest('.camp').querySelector('.camp-error'); e.hidden = ok; e.textContent = msg; return ok; };
+          return [err('#u-nom', $('#u-nom', fons).value.trim().length >= 3, 'Escriu el nom i cognoms.'), err('#u-perfil', !!$('#u-perfil', fons).value, 'Tria el teu perfil.')].every(Boolean);
+        },
+        recull: fons => ({ nom: $('#u-nom', fons).value.trim(), email: $('#u-email', fons).value.trim() || null, perfil: $('#u-perfil', fons).value }) },
+    ],
+  });
+  if (r?.accio === 'si') {
+    S.usuari = r.dades;
+    try { localStorage.setItem(CLAU_USUARI, JSON.stringify(S.usuari)); } catch { /* només per a la sessió */ }
+    pintaUsuari();
+    refrescaTot();
+  }
+  return S.usuari;
+}
+/** Retorna l'usuari si té el perfil demanat; si no està identificat, li ho demana. */
+async function requereix(perfilsAdmesos) {
+  if (!S.usuari) await demanaUsuari('Identifica\'t abans de fer canvis.');
+  if (!S.usuari) return null;
+  if (perfilsAdmesos && !perfilsAdmesos.includes(S.usuari.perfil)) {
+    toast(`Aquesta acció la fa el perfil ${perfilsAdmesos.map(nomPerfil).join(' o ')}.`, 'avis');
+    return null;
+  }
+  return S.usuari;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// NAVEGACIÓ
+// ════════════════════════════════════════════════════════════════════
+let modulActual = 'inici';
+function mostraModul(id) {
+  modulActual = id;
+  $$('.module').forEach(m => m.classList.toggle('active', m.id === 'module-' + id));
+  $$('.module-nav button').forEach(b => b.classList.toggle('active', b.dataset.modul === id));
+  if (id === 'inici') Inici.pinta();
+  if (id === 'tramitacio') Tramitacio.pinta();
+  if (id === 'recursos') Recursos.pinta();
+  if (id === 'dades') Dades.mostra();
+  window.scrollTo({ top: 0 });
+}
+$$('[data-modul]').forEach(b => b.addEventListener('click', () => mostraModul(b.dataset.modul)));
+$('#btn-usuari').addEventListener('click', () => demanaUsuari());
+window.addEventListener('beforeunload', e => { if (S.pendents) { e.preventDefault(); e.returnValue = ''; } });
+
+// ════════════════════════════════════════════════════════════════════
+// DOMINI: etiquetes, persones, avisos de terminis
+// ════════════════════════════════════════════════════════════════════
+const etCat = (llista, codi) => (S.cat[llista] || []).find(x => x.codi === codi)?.etiqueta || codi || '—';
+const opcionsCat = llista => (S.cat[llista] || []).map(x => ({ v: x.codi, t: x.etiqueta }));
+const nomUnitat = c => S.unitats[c]?.nom || c || '';
+const estatsExp = () => S.vars.estats_expedient || {};
+const etEstat = e => estatsExp()[e]?.etiqueta || e;
+const htmlEstat = e => `<span class="ee ee-${esc(e)}">${esc(etEstat(e))}</span>`;
+const etEstatInf = e => S.vars.estats_informe?.[e] || e;
+const etEstatRec = e => S.vars.estats_recurs?.[e] || e;
+const htmlEstatRec = e => `<span class="ee ee-${esc(e)}">${esc(etEstatRec(e))}</span>`;
+const htmlEstatInf = e => `<span class="ee ee-${esc(e)}">${esc(etEstatInf(e))}</span>`;
+const personaDe = exp => S.persones.find(p => p.id === exp.persona_id) || null;
+const expDe = id => S.exp.find(e => e.id === id);
+const expedientsDePersona = pid => S.exp.filter(e => e.persona_id === pid);
+const ambitDe = comarca => (S.cat.comarques || []).find(c => c.nom === comarca)?.ambit || null;
+const espaisNaturals = () => Object.values(S.unitats).filter(u => u.tipus === 'ESPAI_NATURAL' || u.tipus === 'CONSORCI').sort((a, b) => ordCa(a.nom, b.nom));
+const termini = k => S.vars.terminis?.[k];
+
+/** Tots els informes (d'expedients i de recursos) amb el seu context. */
+function totsInformes() {
+  const r = [];
+  for (const exp of S.exp) {
+    (exp.informes || []).forEach(inf => r.push({ exp, rec: null, inf }));
+    (exp.recursos || []).forEach(rec => (rec.informes || []).forEach(inf => r.push({ exp, rec, inf })));
+  }
+  return r;
+}
+const esMeu = inf => S.usuari && inf.tecnic && norm(inf.tecnic) === norm(S.usuari.nom);
+const dataCaducitat = exp => exp.instruccio?.acord_incoacio?.data ? sumaMesos(exp.instruccio.acord_incoacio.data, termini('mesos_caducitat_procediment') || 6) : null;
+const dataLimitRecurs = rec => { const m = (S.cat.tipus_recurs || []).find(t => t.codi === rec.tipus)?.mesos_resoldre; return m && rec.data_presentacio ? sumaMesos(rec.data_presentacio, m) : null; };
+
+/** Avisos de terminis d'un expedient (informes, caducitat, recursos). */
+function avisosDe(exp) {
+  const marge = termini('dies_avis_abans') ?? 15, av = [];
+  const afegeix = (data, text, ctx) => {
+    if (!data) return;
+    const d = diesFins(data);
+    if (d <= marge) av.push({ exp, data, dies: d, text, nivell: d < 0 ? 'vençut' : 'avis', ...ctx });
+  };
+  (exp.informes || []).filter(i => i.estat !== 'lliurat').forEach(i => afegeix(i.data_limit, `Informe tècnic ${i.id}`, { inf: i }));
+  if (exp.estat === 'instruccio') afegeix(dataCaducitat(exp), 'Caducitat del procediment');
+  (exp.recursos || []).filter(r => r.estat !== 'resolt').forEach(r => {
+    afegeix(dataLimitRecurs(r), `Resolució del recurs ${r.id}`, { rec: r });
+    (r.informes || []).filter(i => i.estat !== 'lliurat').forEach(i => afegeix(i.data_limit, `Informe del recurs ${r.id}`, { rec: r, inf: i }));
+  });
+  return av;
+}
+const textDies = d => d < 0 ? `vençut fa ${-d} ${-d === 1 ? 'dia' : 'dies'}` : d === 0 ? 'venç avui' : `falten ${d} ${d === 1 ? 'dia' : 'dies'}`;
+
+/** Què ha de fer el perfil actual amb un expedient (null si res). */
+function pendentPerMi(exp) {
+  if (esJuridic()) {
+    if (exp.estat === 'entrada') return 'Validar l’entrada de la denúncia';
+    if (exp.estat === 'informe_lliurat') return 'Incoar l’expedient o demanar un altre informe';
+    if (exp.estat === 'instruccio') {
+      if ((exp.informes || []).some(i => i.estat === 'lliurat' && !i.vist_juridic)) return 'Revisar l’informe d’al·legacions';
+      return null;
+    }
+  }
+  if (esTecnic()) {
+    const p = (exp.informes || []).filter(i => i.estat !== 'lliurat');
+    if (p.some(esMeu)) return 'Redactar l’informe tècnic que tens assignat';
+    if (p.some(i => !i.tecnic)) return 'Informe tècnic sense tècnic assignat';
+  }
+  return null;
+}
+function recursPendentPerMi(rec) {
+  if (esJuridic() && rec.estat === 'presentat') return 'Tramitar i resoldre el recurs';
+  if (esTecnic()) {
+    const p = (rec.informes || []).filter(i => i.estat !== 'lliurat');
+    if (p.some(esMeu)) return 'Redactar l’informe del recurs';
+    if (p.some(i => !i.tecnic)) return 'Informe de recurs sense tècnic assignat';
+  }
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DESAR (carpeta de treball o memòria + descàrrega)
+// ════════════════════════════════════════════════════════════════════
+async function desaRegistre(tipus, obj, { esAlta = false, accio, detall = null }) {
+  const fitxer = tipus === 'expedient' ? 'expedients.json' : 'persones.json';
+  const prefix = tipus === 'expedient' ? `SAN-${new Date().getFullYear()}-` : 'PER-';
+  const versioEsperada = obj.versio || 0;
+  const nou = clone(obj);
+  nou.versio = versioEsperada + 1;
+  nou.modificat = ara(); nou.modificat_per = S.usuari.nom;
+  if (esAlta) { nou.creat = nou.modificat; nou.creat_per = nou.modificat_per; }
+  const entrada = { data: nou.modificat, persona: S.usuari.nom, perfil: S.usuari.perfil, tipus, id: null, accio, detall };
+  try {
+    if (Carpeta.activa()) {
+      const r = await Carpeta.desaRegistre(fitxer, prefix, nou, versioEsperada, esAlta);
+      if (tipus === 'expedient') S.exp = r.llista; else S.persones = r.llista;
+      entrada.id = r.obj.id;
+      S.historial = await Carpeta.afegeixHistorial(entrada);
+    } else {
+      const llista = tipus === 'expedient' ? S.exp : S.persones;
+      if (esAlta) {
+        const n = Math.max(0, ...llista.filter(x => x.id?.startsWith(prefix)).map(x => +x.id.slice(prefix.length) || 0));
+        nou.id = prefix + String(n + 1).padStart(4, '0');
+        llista.push(nou);
+      } else {
+        const i = llista.findIndex(x => x.id === nou.id);
+        llista[i] = nou;
+      }
+      entrada.id = nou.id;
+      S.historial.push(entrada);
+      S.pendents++;
+      Carpeta.repinta();
+    }
+    return tipus === 'expedient' ? expDe(entrada.id) : S.persones.find(p => p.id === entrada.id);
+  } catch (e) {
+    toast((e.conflicte ? 'No s’ha desat: ' : 'Error en desar: ') + e.message + (e.conflicte ? ' Recarrega les dades i torna-ho a provar.' : ''), 'error', 12000);
+    throw e;
+  }
+}
+/** Aplica un canvi a una còpia de l'expedient i el desa. */
+async function canviaExpedient(exp, accio, fn, detall) {
+  const c = clone(exp);
+  fn(c);
+  const desat = await desaRegistre('expedient', c, { accio, detall });
+  refrescaTot();
+  return desat;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FORMULARIS
+// ════════════════════════════════════════════════════════════════════
+function camp(c) {
+  const v = c.valor ?? '';
+  let inp;
+  if (c.tipus === 'select') inp = `<select id="${c.id}">${c.senseBuit ? '' : '<option value="">—</option>'}${(c.opcions || []).map(o => `<option value="${esc(o.v)}" ${String(o.v) === String(v) ? 'selected' : ''}>${esc(o.t)}</option>`).join('')}</select>`;
+  else if (c.tipus === 'textarea') inp = `<textarea id="${c.id}" rows="${c.files || 3}">${esc(v)}</textarea>`;
+  else if (c.tipus === 'checks') inp = `<div class="xecs" id="${c.id}">${c.opcions.map(o => `<label><input type="checkbox" name="${c.id}" value="${esc(o.v)}" ${(v || []).includes(o.v) ? 'checked' : ''}> ${esc(o.t)}</label>`).join('')}</div>`;
+  else if (c.tipus === 'bool') inp = `<label class="xec"><input type="checkbox" id="${c.id}" ${v ? 'checked' : ''}> ${esc(c.text || 'Sí')}</label>`;
+  else inp = `<input type="${c.tipus === 'number' ? 'number' : c.tipus || 'text'}" id="${c.id}" value="${esc(v)}" ${c.tipus === 'number' ? 'step="any" min="0"' : ''} ${c.llista ? `list="${c.llista}"` : ''}>`;
+  return `<div class="camp ${c.ampla ? 'ampla' : ''}"><label for="${c.id}" class="${c.req ? 'required' : ''}">${esc(c.et)}</label>${inp}${c.ajuda ? `<div class="ajuda">${c.ajuda}</div>` : ''}<div class="camp-error" hidden></div></div>`;
+}
+function val(fons, id) {
+  const el = fons.querySelector('#' + id);
+  if (!el) return null;
+  if (el.type === 'checkbox') return el.checked;
+  const t = el.value.trim();
+  if (t === '') return null;
+  return el.type === 'number' ? Number(t) : t;
+}
+const valChecks = (fons, id) => [...fons.querySelectorAll(`input[name="${id}"]:checked`)].map(i => i.value);
+function marcaError(fons, id, ok, msg = 'Camp obligatori.') {
+  const c = fons.querySelector('#' + id)?.closest('.camp');
+  if (!c) return ok;
+  const e = c.querySelector('.camp-error'); e.hidden = ok; e.textContent = msg;
+  c.classList.toggle('te-error', !ok);
+  return ok;
+}
+const requerits = (fons, ids) => ids.map(id => marcaError(fons, id, val(fons, id) != null)).every(Boolean);
+const opcionsTecnics = () => {
+  const s = new Set();
+  totsInformes().forEach(({ inf }) => { if (inf.tecnic) s.add(inf.tecnic); });
+  S.historial.filter(h => h.perfil === 'tecnic').forEach(h => s.add(h.persona));
+  $('#dl-tecnics').innerHTML = [...s].sort(ordCa).map(t => `<option value="${esc(t)}"></option>`).join('');
+};
+
+// ════════════════════════════════════════════════════════════════════
+// LECTURA DELS PDF DEL CAR
+//   · Acta de denúncia (model D01): PDF amb camps de formulari → es llegeixen els camps.
+//   · Informe complementari: PDF de text (Word) → es llegeix el text i se'n treuen les dades.
+// ════════════════════════════════════════════════════════════════════
+let promesaPdfjs = null;
+function carregaPdfjs() {
+  if (!promesaPdfjs) promesaPdfjs = new Promise((ok, ko) => {
+    const s = document.createElement('script');
+    s.src = CONFIG.PDFJS.lib; s.integrity = CONFIG.PDFJS.libSri; s.crossOrigin = 'anonymous';
+    s.onload = async () => {
+      try {
+        const t = await (await fetch(CONFIG.PDFJS.worker, { integrity: CONFIG.PDFJS.workerSri })).text();
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
+        ok(window.pdfjsLib);
+      } catch (e) { promesaPdfjs = null; ko(new Error("No s'ha pogut carregar el lector de PDF: " + e.message)); }
+    };
+    s.onerror = () => { promesaPdfjs = null; ko(new Error("No s'ha pogut carregar el lector de PDF (cal connexió a internet).")); };
+    document.head.appendChild(s);
+  });
+  return promesaPdfjs;
+}
+const dataDMA = t => {
+  const m = String(t || '').match(/(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
+  if (!m) return null;
+  const a = m[3].length === 2 ? '20' + m[3] : m[3];
+  return `${a}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+};
+const netText = t => (t == null ? null : String(t).replace(/\r\n?/g, '\n').replace(/^[\s-]*\n/, '').trim() || null);
+const numUtm = t => { const n = Number(String(t ?? '').replace(/[^\d.]/g, '')); return n || null; };
+const textAgents = t => (t ? String(t).split(/[\s,;/-]+/).filter(Boolean).join(' - ') : null);
+
+/** Busca l'espai natural protegit pel nom dins dels textos donats (EIN, paratge, fets). */
+function detectaEnp(...textos) {
+  const esq = t => norm(t).replace(/[^a-z0-9]/g, '');
+  const tot = esq(textos.filter(Boolean).join(' '));
+  if (!tot) return null;
+  const nucli = u => esq(norm(u.nom).replace(/^(parc natural|parc nacional|paratge natural d'interes nacional|reserva natural parcial|consorci)( dels| de les| de la| de l'| del| de| d')?\s*/, '').replace(/^(dels|de les|de la|de l'|del|de|d') /, ''));
+  return espaisNaturals().map(u => ({ u, n: nucli(u) })).filter(x => x.n.length >= 6 && tot.includes(x.n)).sort((a, b) => b.n.length - a.n.length)[0]?.u.codi || null;
+}
+
+/** Línies de text de tot el document, ordenades i amb la distància vertical respecte de la línia anterior. */
+async function liniesPdf(doc) {
+  const linies = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const tc = await (await doc.getPage(p)).getTextContent();
+    const grups = [];
+    tc.items.filter(it => it.str?.trim() && !/^I\d{2}$/.test(it.str.trim())).forEach(it => {
+      const y = it.transform[5], x = it.transform[4];
+      let g = grups.find(g => Math.abs(g.y - y) < 3);
+      if (!g) grups.push(g = { y, items: [] });
+      g.items.push({ x, w: it.width || 0, s: it.str });
+    });
+    grups.sort((a, b) => b.y - a.y).forEach((g, i, arr) => {
+      g.items.sort((a, b) => a.x - b.x);
+      let txt = '', fi = null;
+      g.items.forEach(it => { txt += fi == null ? it.s : (it.x - fi > 12 ? '\t' : it.x - fi > 1 ? ' ' : '') + it.s; fi = it.x + it.w; });
+      linies.push({ text: txt.replace(/[ ]{2,}/g, ' ').trim(), salt: i ? arr[i - 1].y - g.y : 99, pagina: p });
+    });
+  }
+  return linies;
+}
+const CAPS_PEUS = [/^Generalitat/i, /^de Catalunya$/i, /Servei\.? núm/i, /Full núm/i, /^Signatures/i, /^Agents actuants$/i, /^I\d{2}$/, /^Àrea Bàsica/i,
+  /^Tel\.? \d{3} ?\d{6}$/i, /@gencat\.cat$/i, /DOCUMENT FICTICI/i];
+/** Ajunta les línies d'un tros de text en paràgrafs (salt vertical gran = paràgraf nou). */
+function paragrafs(linies) {
+  // Les línies que es repeteixen a més d'una pàgina són capçaleres o peus
+  const pagines = {};
+  linies.forEach(l => { (pagines[l.text] = pagines[l.text] || new Set()).add(l.pagina); });
+  const bones = linies.filter(l => !CAPS_PEUS.some(r => r.test(l.text)) && !(pagines[l.text].size > 1 && l.text.length < 60));
+  if (!bones.length) return null;
+  const salts = bones.slice(1).map(l => l.salt).filter(s => s > 0 && s < 40).sort((a, b) => a - b);
+  const normal = salts.length >= 4 ? salts[Math.floor(salts.length / 4)] : Math.min(14, ...salts);
+  let out = '';
+  bones.forEach((l, i) => { out += i === 0 ? l.text : (l.salt > normal * 1.5 || l.pagina !== bones[i - 1].pagina ? '\n\n' : ' ') + l.text; });
+  return out.replace(/\t/g, ' ').replace(/ {2,}/g, ' ').trim();
+}
+
+/** Llegeix un PDF del CAR i diu què és (acta, informe o desconegut) amb les dades que n'ha tret. */
+async function llegeixPdfCar(fitxer) {
+  const pdfjs = await carregaPdfjs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await fitxer.arrayBuffer()) }).promise;
+  const camps = await doc.getFieldObjects();
+  if (camps && (camps.Acta || camps.fets)) return { tipus: 'acta', dades: dadesActa(camps) };
+  const linies = await liniesPdf(doc);
+  const text = linies.map(l => l.text).join('\n');
+  if (/Informe agents rurals|Informe complementari/i.test(text)) return { tipus: 'informe', dades: dadesInforme(linies, text) };
+  if (/acta de den[uú]ncia/i.test(text)) throw new Error('Sembla una acta de denúncia escanejada o sense camps de formulari: omple les dades a mà.');
+  throw new Error('No és cap acta de denúncia ni cap informe complementari del CAR reconeguts.');
+}
+function dadesActa(camps) {
+  const v = nom => { const c = camps[nom]?.[0]; if (!c) return null; const x = c.value; return x == null || x === '' || x === 'Off' ? null : x; };
+  const marcat = nom => { const x = v(nom); return x != null && x !== false && x !== 'Off'; };
+  const t = nom => netText(v(nom));
+  const r = {
+    model: t('Model'), num_acta: t('Acta'), versio_model: t('Versio'),
+    agents: textAgents(t('agents')), data_fets: dataDMA(v('Dia')), hora_fets: t('hora'),
+    comarca: t('Comarca'), municipi: t('Municipi'), paratge: t('Paratge'),
+    utm_x: numUtm(v('CorX')), utm_y: numUtm(v('CorY')), ein: t('EIN'),
+    materia_car: (S.cat.materies_car || []).filter(m => marcat(m.camp_pdf)).map(m => m.codi),
+    materia_car_altres: t('AltresText'),
+    fets: t('fets'), observacions: t('Observacions'),
+    doc_informe: marcat('Docu_informe'), doc_reportatge: marcat('Docu_reportatge'), doc_actes: marcat('Docu_actes'),
+    doc_actes_num: t('Actes_num'), doc_altres: marcat('Docu_altres') ? (t('Docu_altres_text') || 'Sí') : null,
+    p_nif: t('DNI_infractor'), p_nom: t('NomRaoSocial_infractor'), p_adreca: t('adreca_infractor'),
+    p_poblacio: t('poblacio_infractor'), p_email: t('correu'), p_telefon: t('Telefon'),
+  };
+  r.enp = detectaEnp(r.ein, r.paratge, r.fets);
+  return r;
+}
+function dadesInforme(linies, text) {
+  const m = (re, t = text) => (t.match(re)?.[1] || '').replace(/\t.*/, '').trim() || null;
+  const idx = re => linies.findIndex(l => re.test(l.text));
+  const entre = (ini, fins) => { const a = idx(ini); if (a < 0) return null; let b = linies.findIndex((l, i) => i > a && fins.test(l.text)); if (b < 0) b = linies.length;
+    const primera = { ...linies[a], text: linies[a].text.replace(ini, '').trim() };
+    return paragrafs([primera, ...linies.slice(a + 1, b)].filter(l => l.text)); };
+  const lloc = text.match(/Lloc:\s*([^\t\n]+?)\s*\(TM:\s*([^)]+)\)/i);
+  const acta = text.match(/acta(?: de den[uú]ncia)?\s+(D\d{2})[\s-]+(\d+-\d+)/i);
+  const utm = text.match(/X:?\s*(\d{6})\D{1,6}Y:?\s*(\d{7})/);
+  const desc = entre(/Descripci[oó] dels fets:?/i, /^Conclusions/i);
+  const concl = entre(/^Conclusions:?/i, /^(Signatures|Àrea Bàsica|REPORTATGE FOTOGR|PLÀNOL DE)/i);
+  const r = {
+    servei: m(/Servei\.?\s*núm\.?:?\s*([\w/-]+)/i),
+    agents: textAgents(m(/Agents actuants:\s*([\d ]+)/i)),
+    comarca: m(/Comarca:\s*([^\t\n]+)/i),
+    data: dataDMA(m(/(?:^|\s)Data:\s*([\d/.-]+)/im)),
+    paratge: lloc?.[1]?.trim() || null, municipi: lloc?.[2]?.trim() || null,
+    model: acta?.[1]?.toUpperCase() || null, num_acta: acta?.[2] || null,
+    p_nom: m(/Nom\/cognoms:\s*([^\n]+)/i), p_nif: m(/N[uú]m\.?\s*DNI:\s*([^\s\n]+)/i), p_adreca: m(/Adre[cç]a:\s*([^\n]+)/i),
+    p_poblacio: m(/Poblaci[oó]:\s*([^\n]+)/i), p_telefon: m(/Tel[eè]fon:\s*([^\n]+)/i), p_email: m(/E-?mail:\s*([^\s\n]+)/i),
+    utm_x: utm ? +utm[1] : null, utm_y: utm ? +utm[2] : null,
+    descripcio: desc, conclusions: concl,
+  };
+  // Els noms en majúscules es passen a format de nom propi
+  if (r.p_nom && r.p_nom === r.p_nom.toUpperCase()) r.p_nom = r.p_nom.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
+  r.text = [desc && `Descripció dels fets:\n${desc}`, concl && `Conclusions:\n${concl}`].filter(Boolean).join('\n\n') || null;
+  r.enp = detectaEnp(r.paratge, desc);
+  return r;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// INICI (HOME)
+// ════════════════════════════════════════════════════════════════════
+const Inici = (() => {
+  function pinta() {
+    const n = e => S.exp.filter(x => x.estat === e).length;
+    const recs = S.exp.flatMap(e => (e.recursos || []).map(r => ({ e, r })));
+    $('#home-tram').innerHTML = Object.entries(estatsExp()).map(([k, d]) => `<li><span>${esc(d.etiqueta)}</span><b>${n(k)}</b></li>`).join('');
+    $('#home-rec').innerHTML = Object.entries(S.vars.estats_recurs || {}).map(([k, t]) => `<li><span>${esc(t)}</span><b>${recs.filter(x => x.r.estat === k).length}</b></li>`).join('')
+      + `<li><span>Expedients que admeten recurs</span><b>${S.exp.filter(e => (S.vars.estats_que_admeten_recurs || []).includes(e.estat)).length}</b></li>`;
+    const imposat = S.exp.filter(e => e.resolucio?.sentit === 'sancio').reduce((s, e) => s + (e.resolucio.import || 0), 0);
+    const reinc = new Set(S.exp.map(e => e.persona_id).filter(p => p && expedientsDePersona(p).length > 1)).size;
+    $('#home-dades').innerHTML = `<li><span>Expedients</span><b>${S.exp.length}</b></li><li><span>Import de les sancions imposades</span><b>${fmtEur(imposat)}</b></li>
+      <li><span>Persones amb més d'un expedient</span><b>${reinc}</b></li><li><span>Comarques afectades</span><b>${new Set(S.exp.map(e => e.localitzacio?.comarca).filter(Boolean)).size}</b></li>`;
+
+    // Intro i accions segons el perfil
+    $('#inici-intro').innerHTML = S.usuari
+      ? `Hola, ${esc(S.usuari.nom.split(' ')[0])}. Treballes amb el perfil <span class="perfil-actual">${esc(nomPerfil(perfil()))}</span>${esJuridic() ? ': gestiones el tràmit jurídic dels expedients i dels recursos.' : esTecnic() ? ': redactes els informes tècnics que donen suport al tràmit.' : ': pots consultar els expedients i les dades.'}`
+      : 'Tramitació dels expedients sancionadors de la Direcció General de Polítiques Ambientals i Medi Natural. <strong>Identifica\'t</strong> per veure les tasques que et toquen.';
+    $('#inici-accions').innerHTML = esJuridic() ? `<button type="button" class="btn btn-primary" data-accio-inici="nova">＋ Nova denúncia</button>`
+      : !S.usuari ? `<button type="button" class="btn btn-primary" data-accio-inici="usuari">👤 Identifica't</button>` : '';
+
+    // Safata de pendents
+    const items = [];
+    S.exp.forEach(e => { const p = pendentPerMi(e); if (p) items.push({ tipus: 'exp', e, text: p }); });
+    recs.forEach(({ e, r }) => { const p = recursPendentPerMi(r); if (p) items.push({ tipus: 'rec', e, r, text: p }); });
+    $('#t-safata').textContent = S.usuari ? `Pendents de ${nomPerfil(perfil()).toLowerCase()}` : 'Pendents';
+    $('#n-safata').textContent = items.length ? `${items.length}` : '';
+    $('#safata').innerHTML = !S.usuari ? `<li class="safata-buida">Identifica't per veure què tens pendent.</li>`
+      : items.map(it => `<li><button type="button" data-ves-exp="${esc(it.e.id)}" ${it.r ? `data-ves-rec="${esc(it.r.id)}"` : ''}>
+          <span class="t">${esc(it.text)}</span>
+          <span class="s">${esc(it.e.id)}${it.r ? ' · ' + esc(it.r.id) : ''} · acta ${esc(it.e.origen?.model || '')} ${esc(it.e.origen?.num_acta || '')} · ${esc(it.e.localitzacio?.municipi || '')} · ${it.r ? htmlEstatRec(it.r.estat) : htmlEstat(it.e.estat)}</span></button></li>`).join('')
+        || `<li class="safata-buida">No tens res pendent. 👍</li>`;
+
+    // Avisos
+    const av = S.exp.flatMap(avisosDe).sort((a, b) => a.dies - b.dies);
+    $('#n-avisos').textContent = av.length ? `${av.length}` : '';
+    $('#avisos-home').innerHTML = av.map(a => `<li><button type="button" class="${a.nivell}" data-ves-exp="${esc(a.exp.id)}" ${a.rec ? `data-ves-rec="${esc(a.rec.id)}"` : ''}>
+        <span class="t">${a.nivell === 'vençut' ? '⛔' : '⏰'} ${esc(a.text)} · ${esc(textDies(a.dies))}</span>
+        <span class="s">${esc(a.exp.id)} · ${esc(fmtData(a.data))}</span></button></li>`).join('') || `<li class="safata-buida">Cap termini a prop de vèncer.</li>`;
+
+    // Insígnies de la navegació
+    const nT = items.filter(i => i.tipus === 'exp').length, nR = items.filter(i => i.tipus === 'rec').length;
+    $('#nav-badge-tram').hidden = !nT; $('#nav-badge-tram').textContent = nT;
+    $('#nav-badge-rec').hidden = !nR; $('#nav-badge-rec').textContent = nR;
+  }
+  $('#module-inici').addEventListener('click', e => {
+    const b = e.target.closest('[data-ves-exp]');
+    if (b) { if (b.dataset.vesRec) Recursos.obre(b.dataset.vesExp, b.dataset.vesRec); else Tramitacio.obre(b.dataset.vesExp); return; }
+    const a = e.target.closest('[data-accio-inici]')?.dataset.accioInici;
+    if (a === 'nova') Accions.novaDenuncia();
+    if (a === 'usuari') demanaUsuari();
+  });
+  return { pinta };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// MÒDUL 1 · TRAMITACIÓ
+// ════════════════════════════════════════════════════════════════════
+const vl = (et, v, ampla) => `<div class="camp ${ampla ? 'ampla' : ''}"><div class="et">${esc(et)}</div><div class="vl">${buit(v) ? '<span class="buit">—</span>' : esc(v)}</div></div>`;
+const vlHtml = (et, html, ampla) => `<div class="camp ${ampla ? 'ampla' : ''}"><div class="et">${esc(et)}</div><div class="vl">${html}</div></div>`;
+const grup = (titol, cos, obert = true, compte = '') => `<details class="grup" ${obert ? 'open' : ''}><summary>${esc(titol)} ${compte ? `<span class="compte">${esc(compte)}</span>` : ''}</summary><div class="grup-cos">${cos}</div></details>`;
+
+const Tramitacio = (() => {
+  function pintaFiltres() {
+    const sel = $('#tr-estat'), v = sel.value;
+    sel.innerHTML = `<option value="">Tots els estats</option>` + Object.entries(estatsExp()).map(([k, d]) => `<option value="${esc(k)}">${esc(d.etiqueta)} (${S.exp.filter(e => e.estat === k).length})</option>`).join('');
+    sel.value = v;
+  }
+  function pintaLlista() {
+    const q = norm($('#tr-cerca').value.trim()), estat = $('#tr-estat').value, meus = $('#tr-meus').checked;
+    const tots = [...S.exp].sort((a, b) => String(b.origen?.data_entrada || '').localeCompare(String(a.origen?.data_entrada || '')) || ordCa(b.id, a.id));
+    const els = tots.filter(e => (!estat || e.estat === estat) && (!meus || pendentPerMi(e)) &&
+      (!q || norm([e.id, e.origen?.num_acta, e.localitzacio?.municipi, e.localitzacio?.comarca, e.fets, personaDe(e)?.nom, personaDe(e)?.nif].join(' ')).includes(q)));
+    $('#tr-recompte').textContent = els.length === tots.length ? `${tots.length} expedients` : `${els.length} de ${tots.length} expedients`;
+    $('#tr-llista').innerHTML = els.map(e => {
+      const p = pendentPerMi(e), av = avisosDe(e);
+      return `<li><button type="button" data-id="${esc(e.id)}" class="${e.id === S.selExp ? 'sel' : ''}">
+        <span class="nom">${esc(e.id)} <span class="text-small text-muted">· acta ${esc([e.origen?.model, e.origen?.num_acta].filter(Boolean).join(' '))}</span></span>
+        <span class="sub">${esc([e.localitzacio?.municipi, etCat('tematiques', e.tematica) !== '—' ? etCat('tematiques', e.tematica) : null, fmtData(e.origen?.data_fets)].filter(Boolean).join(' · '))}</span>
+        <span class="linia">${htmlEstat(e.estat)} ${p ? `<span class="marca" title="${esc(p)}">et toca</span>` : ''}
+          ${av.length ? `<span class="marca" title="${esc(av.map(a => a.text + ': ' + textDies(a.dies)).join('\n'))}">${av.some(a => a.nivell === 'vençut') ? '⛔' : '⏰'} termini</span>` : ''}
+          ${(e.recursos || []).length ? `<span class="marca comp">recurs</span>` : ''}
+          ${e.dades_prova ? `<span class="marca comp" title="Dades fictícies de prova">prova</span>` : ''}</span>
+      </button></li>`;
+    }).join('') || `<li class="fitxa-buida">Cap expedient coincideix amb la cerca.</li>`;
+  }
+
+  function htmlFases(e) {
+    const f = estatsExp()[e.estat]?.fase || 1, tancat = ['resolt', 'arxivat'].includes(e.estat);
+    const fases = [['Entrada i validació', 'Jurídic/a'], ['Informe tècnic', 'Tècnic/a'], ['Incoació i instrucció', 'Jurídic/a'], ['Resolució', 'Jurídic/a']];
+    return `<div class="fases">${fases.map(([t, q], i) => {
+      const n = i + 1, cls = e.estat === 'arxivat' && n === 4 ? 'tancada' : n < f || (tancat && n === f) ? 'feta' : n === f ? 'actual' : '';
+      return `<div class="fase ${cls}"><b>${n}. ${esc(t)}</b>${esc(q)}</div>`;
+    }).join('')}</div>`;
+  }
+  function htmlInforme(inf, ctx) {
+    const pot = esTecnic() && inf.estat !== 'lliurat';
+    return `<div class="targeta-informe ${inf.estat === 'lliurat' ? 'lliurat' : ''}">
+      <div class="cap"><strong>${esc(inf.id)} · ${esc({ previ_incoacio: 'Informe previ a la incoació', allegacions: 'Informe sobre les al·legacions', recurs: 'Informe sobre el recurs' }[inf.moment] || 'Informe tècnic')}</strong>
+        <span>${htmlEstatInf(inf.estat)} ${pot ? `<button type="button" class="btn btn-primary btn-petit" data-inf="${esc(inf.id)}" ${ctx.rec ? `data-rec="${esc(ctx.rec.id)}"` : ''}>✎ ${inf.estat === 'en_curs' ? 'Continua' : 'Redacta'} l'informe</button>` : ''}</span></div>
+      <div class="camps">
+        ${vl('Tècnic/a', inf.tecnic || 'Sense assignar')}${vl('Demanat per', `${inf.demanat_per || ''} · ${fmtData(inf.data_peticio)}`)}
+        ${vlHtml('Data límit', inf.data_limit ? `${esc(fmtData(inf.data_limit))}${inf.estat !== 'lliurat' ? ` <span class="text-small text-muted">(${esc(textDies(diesFins(inf.data_limit)))})</span>` : ''}` : '<span class="buit">—</span>')}
+        ${vl('Qüestions plantejades', inf.preguntes, true)}
+        ${inf.estat !== 'demanat' ? `${vl('Valoració dels danys', inf.valoracio_danys, true)}${vl('Valoració econòmica', inf.valoracio_economica != null ? fmtEur(inf.valoracio_economica) : null)}
+          ${vl('Qualificació proposada', inf.qualificacio_proposada ? etCat('qualificacions', inf.qualificacio_proposada) : null)}
+          ${vl('Mesures de reparació', inf.mesures_reparacio, true)}${vl('Conclusions', inf.conclusions, true)}` : ''}
+        ${inf.estat === 'lliurat' ? vl('Lliurat', `${inf.redactat_per || ''} · ${fmtData(inf.data_lliurament)}`) : ''}
+      </div></div>`;
+  }
+  function htmlHistorial(id) {
+    const h = S.historial.filter(x => x.id === id || x.expedient === id).slice().reverse();
+    return h.map(x => `<div class="hist-linia"><strong>${esc(x.accio)}</strong>${x.detall ? ` · ${esc(x.detall)}` : ''}<div class="q">${esc(fmtData(x.data))} · ${esc(x.persona)} (${esc(nomPerfil(x.perfil))})</div></div>`).join('') || '<p class="text-muted">Sense canvis registrats.</p>';
+  }
+
+  function botonsAccions(e) {
+    const b = [], bt = (accio, text, principal) => `<button type="button" class="btn ${principal ? 'btn-primary' : 'btn-secondary'} btn-petit" data-accio="${accio}">${text}</button>`;
+    if (esJuridic()) {
+      if (e.estat === 'entrada') b.push(bt('valida', '✔ Valida l’entrada', true));
+      if (e.estat === 'informe_lliurat') b.push(bt('incoa', '⚖ Incoa l’expedient', true), bt('informe', '＋ Demana un altre informe'), bt('arxiva', 'Arxiva'));
+      if (e.estat === 'instruccio') b.push(bt('resol', '⚖ Resol', true), bt('allegacions', '＋ Al·legacions'), bt('informe', '＋ Informe sobre al·legacions'), bt('proposta', 'Proposta de resolució'), bt('arxiva', 'Arxiva'));
+      if ((S.vars.estats_que_admeten_recurs || []).includes(e.estat)) b.push(bt('recurs', '＋ Afegeix un recurs'));
+      if (!['resolt', 'arxivat'].includes(e.estat)) b.push(bt('edita', '✎ Edita les dades de la denúncia'));
+    }
+    const resp = estatsExp()[e.estat]?.responsable;
+    const qui = resp ? `Ara li toca al perfil <strong>${esc(nomPerfil(resp))}</strong>.` : 'Expedient tancat.';
+    const aviso = !S.usuari ? ' Identifica\'t per fer-hi canvis.' : perfil() === 'consulta' ? ' El teu perfil és de consulta.' : '';
+    return `<div class="accions-fitxa">${b.join('')}<span class="qui">${qui}${aviso}</span></div>`;
+  }
+
+  function pintaFitxa(e) {
+    const p = personaDe(e), altres = p ? expedientsDePersona(p.id).filter(x => x.id !== e.id) : [];
+    const L = e.localitzacio || {}, O = e.origen || {}, D = e.documentacio_adjunta || {};
+    const av = avisosDe(e);
+    const enp = L.enp ? nomUnitat(L.enp) : L.dins_enp === false ? 'Fora d’espai natural protegit' : null;
+    $('#tr-fitxa').innerHTML = `
+      <div class="fitxa-cap"><div><div class="id">${esc(e.id)} · versió ${e.versio || 1}${e.dades_prova ? ' · dades de prova' : ''}</div>
+        <h2>Acta ${esc([O.model, O.num_acta].filter(Boolean).join(' '))} · ${esc(L.municipi || '')}</h2><div>${htmlEstat(e.estat)}</div></div>
+        <div class="botons">${O.fitxer_acta ? `<button type="button" class="btn btn-secondary btn-petit" data-accio="acta">📄 Obre l'acta</button>` : ''}${O.fitxer_informe ? `<button type="button" class="btn btn-secondary btn-petit" data-accio="informeCar">📄 Obre l'informe del CAR</button>` : ''}</div></div>
+      ${botonsAccions(e)}
+      ${av.length ? `<div class="avisos-fitxa">${av.map(a => `<div class="${a.nivell === 'vençut' ? 'error-box' : 'avis-box'}">${a.nivell === 'vençut' ? '⛔' : '⏰'} ${esc(a.text)}: ${esc(fmtData(a.data))} (${esc(textDies(a.dies))})</div>`).join('')}</div>` : ''}
+      <div class="fitxa-cos">
+        ${htmlFases(e)}
+        ${grup('Denúncia', `<div class="camps">
+          ${vl('Denunciant', etCat('tipus_denunciant', O.denunciant_tipus))}${vl('Agents', (O.agents || []).join(' - '))}
+          ${vl('Data i hora dels fets', [fmtData(O.data_fets), O.hora_fets].filter(Boolean).join(' · '))}${vl('Entrada a la DG', fmtData(O.data_entrada))}
+          ${vl('Comarca', L.comarca)}${vl('Municipi', L.municipi)}${vl('Paratge', L.paratge)}
+          ${vl('Coordenades UTM (ETRS89 31N)', L.utm?.x ? `X ${L.utm.x} · Y ${L.utm.y}` : null)}${vl('EIN', L.ein)}${vl('Espai natural protegit', enp)}
+          ${vl('Matèria marcada pel denunciant', (e.materia_car || []).map(m => etCat('materies_car', m)).join(', ') + (e.materia_car_altres ? ` (${e.materia_car_altres})` : ''))}
+          ${vl('Temàtica', e.tematica ? etCat('tematiques', e.tematica) : null)}
+          ${vl('Descripció dels fets', e.fets, true)}${vl('Observacions / al·legacions in situ', e.observacions, true)}
+          ${vl('Espècies afectades', (e.especies || []).map(s => `${s.nom}: ${s.exemplars ?? '?'} exemplars${s.morts != null ? `, ${s.morts} morts` : ''}${s.ferits != null ? `, ${s.ferits} ferits` : ''}${s.detall ? ` (${s.detall})` : ''}`).join('\n'), true)}
+          ${vl('Documentació adjunta', [D.informe_complementari && 'Informe complementari', D.reportatge_fotografic && 'Reportatge fotogràfic', D.actes && `Actes ${D.actes_num || ''}`, D.altres].filter(Boolean).join(', '), true)}
+        </div>`)}
+        ${e.informe_car ? grup(`Informe complementari del CAR${e.informe_car.servei ? ' · núm. ' + e.informe_car.servei : ''}`, `<div class="camps">${vl('Data', fmtData(e.informe_car.data))}${vl('Contingut', e.informe_car.text, true)}</div>`, false) : ''}
+        ${grup('Persona denunciada', p ? `<div class="camps">${vl('DNI / NIF', p.nif)}${vl('Nom o raó social', p.nom)}${vl('Adreça', [p.adreca, p.poblacio].filter(Boolean).join(', '))}
+          ${vl('Correu electrònic', p.email)}${vl('Telèfon', p.telefon)}
+          ${vlHtml('Altres expedients de la persona', altres.length ? `<strong>⚠ ${altres.length}</strong>: ${altres.map(x => `<button type="button" class="btn-link" data-ves="${esc(x.id)}">${esc(x.id)}</button> (${esc(etEstat(x.estat))})`).join(', ')}` : 'Cap', true)}</div>` : '<p class="text-muted">Sense persona identificada.</p>')}
+        ${grup('1. Validació inicial', e.validacio ? `<div class="camps">${vl('Resultat', etCat('resultats_validacio', e.validacio.resultat))}${vl('Validat per', `${e.validacio.per} · ${fmtData(e.validacio.data)}`)}
+          ${vl('Derivat a', e.validacio.derivada_a)}${vl('Motivació', e.validacio.motiu, true)}</div>` : '<p class="text-muted">Pendent de validació pel jurídic.</p>', e.estat === 'entrada')}
+        ${grup('2. Informes tècnics', (e.informes || []).map(i => htmlInforme(i, { exp: e })).join('') || '<p class="text-muted">No s’ha demanat cap informe.</p>', true, `${(e.informes || []).length}`)}
+        ${grup('3. Incoació i instrucció', e.instruccio ? (() => { const I = e.instruccio; return `<div class="camps">
+          ${vl('Acord d’incoació', [fmtData(I.acord_incoacio?.data), I.acord_incoacio?.referencia].filter(Boolean).join(' · '))}${vl('Notificació de la incoació', I.acord_incoacio?.notificacio ? fmtData(I.acord_incoacio.notificacio) : null)}
+          ${vl('Instructor/a', I.instructor)}${vl('Caducitat prevista', dataCaducitat(e) ? fmtData(dataCaducitat(e)) : null)}
+          ${vl('Norma i article', [e.tipificacio?.norma, e.tipificacio?.article].filter(Boolean).join(', '))}${vl('Qualificació', e.tipificacio?.qualificacio ? etCat('qualificacions', e.tipificacio.qualificacio) : null)}
+          ${vl('Import proposat a l’acord', I.import_inicial != null ? fmtEur(I.import_inicial) : null)}
+          ${vl('Al·legacions', (I.allegacions || []).map(a => `${fmtData(a.data)}: ${a.resum}`).join('\n'), true)}
+          ${vl('Proposta de resolució', I.proposta ? `${fmtData(I.proposta.data)} · ${I.proposta.qualificacio ? etCat('qualificacions', I.proposta.qualificacio) + ' · ' : ''}${fmtEur(I.proposta.import)}${I.proposta.notificacio ? ` · notificada el ${fmtData(I.proposta.notificacio)}` : ''}` : null, true)}
+          </div>`; })() : '<p class="text-muted">Encara no s’ha incoat.</p>', ['informe_lliurat', 'instruccio'].includes(e.estat))}
+        ${grup('4. Resolució', e.resolucio ? `<div class="camps">${vl('Sentit', etCat('sentits_resolucio', e.resolucio.sentit))}${vl('Data', fmtData(e.resolucio.data))}
+          ${vl('Import de la sanció', e.resolucio.import != null ? fmtEur(e.resolucio.import) : null)}${vl('Qualificació', e.resolucio.qualificacio ? etCat('qualificacions', e.resolucio.qualificacio) : null)}
+          ${vl('Mesures accessòries', (e.resolucio.mesures || []).map(m => etCat('mesures_accessories', m)).join(', '))}${vl('Indemnització', e.resolucio.indemnitzacio != null ? fmtEur(e.resolucio.indemnitzacio) : null)}
+          ${vl('Notificació', e.resolucio.notificacio ? fmtData(e.resolucio.notificacio) : null)}${vl('Resolt per', e.resolucio.per)}</div>`
+          : e.arxiu ? `<div class="camps">${vl('Arxivat', `${fmtData(e.arxiu.data)} · ${e.arxiu.per}`)}${vl('Motiu', e.arxiu.motiu, true)}</div>` : '<p class="text-muted">Pendent.</p>', ['resolt', 'arxivat'].includes(e.estat))}
+        ${grup('Recursos', (e.recursos || []).map(r => `<p><button type="button" class="btn-link" data-ves-rec="${esc(r.id)}">${esc(r.id)} · ${esc(etCat('tipus_recurs', r.tipus))}</button> · presentat el ${esc(fmtData(r.data_presentacio))} · ${htmlEstatRec(r.estat)}</p>`).join('') || '<p class="text-muted">Cap recurs.</p>', (e.recursos || []).length > 0, `${(e.recursos || []).length}`)}
+        ${grup('Registre de canvis', htmlHistorial(e.id), false)}
+      </div>`;
+  }
+
+  function pinta() {
+    pintaFiltres(); pintaLlista();
+    const e = S.selExp && expDe(S.selExp);
+    if (e) pintaFitxa(e); else $('#tr-fitxa').innerHTML = `<div class="fitxa-buida">Selecciona un expedient de la llista o entra una denúncia nova.</div>`;
+    $('#btn-nova').hidden = !!S.usuari && !esJuridic();
+  }
+  function obre(id) { S.selExp = id; if (modulActual !== 'tramitacio') mostraModul('tramitacio'); else pinta(); $('#tr-fitxa').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+
+  $('#tr-cerca').addEventListener('input', pintaLlista);
+  $('#tr-estat').addEventListener('change', pintaLlista);
+  $('#tr-meus').addEventListener('change', pintaLlista);
+  $('#tr-llista').addEventListener('click', ev => { const b = ev.target.closest('[data-id]'); if (b) { S.selExp = b.dataset.id; pinta(); } });
+  $('#btn-nova').addEventListener('click', () => Accions.novaDenuncia());
+  $('#tr-fitxa').addEventListener('click', async ev => {
+    const e = expDe(S.selExp); if (!e) return;
+    const ves = ev.target.closest('[data-ves]'); if (ves) return obre(ves.dataset.ves);
+    const vr = ev.target.closest('[data-ves-rec]'); if (vr) return Recursos.obre(e.id, vr.dataset.vesRec);
+    const inf = ev.target.closest('[data-inf]'); if (inf) return Accions.redactaInforme(e, null, inf.dataset.inf);
+    const a = ev.target.closest('[data-accio]')?.dataset.accio;
+    if (!a) return;
+    if (a === 'acta') return Accions.obreActa(e);
+    if (a === 'informeCar') return Accions.obreInformeCar(e);
+    if (a === 'recurs') return Recursos.nou(e.id);
+    Accions[a]?.(e);
+  });
+  return { pinta, obre, htmlInforme };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// ACCIONS SOBRE ELS EXPEDIENTS
+// ════════════════════════════════════════════════════════════════════
+const MATERIES_NO_COMPETENCIA = ['caca', 'pesca', 'forestal', 'proteccio_animals'];
+const Accions = (() => {
+  const nouIdInforme = llista => 'INF-' + String((llista || []).length + 1).padStart(2, '0');
+
+  // ---------- Formulari de la denúncia (entrada i edició) ----------
+  function filaEspecie(s = {}) {
+    return `<div class="fila-especie"><input type="text" class="e-nom" list="dl-especies" placeholder="Espècie" value="${esc(s.nom || '')}" aria-label="Espècie">
+      <input type="number" class="e-ex" min="0" placeholder="Exempl." value="${esc(s.exemplars ?? '')}" aria-label="Exemplars">
+      <input type="number" class="e-morts" min="0" placeholder="Morts" value="${esc(s.morts ?? '')}" aria-label="Morts">
+      <input type="number" class="e-ferits" min="0" placeholder="Ferits" value="${esc(s.ferits ?? '')}" aria-label="Ferits">
+      <button type="button" class="btn-link" data-treu-especie title="Treu">✕</button></div>`;
+  }
+  function cosDenuncia(e = {}, p = {}, esNova) {
+    const O = e.origen || {}, L = e.localitzacio || {}, D = e.documentacio_adjunta || {}, IC = e.informe_car || {};
+    const enpVal = L.enp || (L.dins_enp === false ? 'FORA' : '');
+    return `<div class="zona-pdf" id="zona-pdf" tabindex="0"><strong>📄 Arrossega aquí ${esNova ? "l'acta de denúncia i l'informe complementari del CAR" : "l'informe complementari o una nova versió de l'acta"} (PDF)</strong> o clica per triar-los.<br>
+        <span class="text-small text-muted">Pots deixar-hi els dos fitxers alhora. ${esNova ? 'Els camps s’ompliran sols i' : 'Només s’omplen els camps buits;'} els podràs revisar i modificar.</span>
+        <input type="file" id="fitxer-acta" accept="application/pdf,.pdf" multiple hidden></div><div id="estat-lectura" class="estat-lectura"></div>
+      <h3 class="sec">Origen de la denúncia</h3><div class="camps">
+        ${camp({ id: 'd-denunciant', et: 'Denunciant', tipus: 'select', opcions: opcionsCat('tipus_denunciant'), valor: O.denunciant_tipus || 'CAR', req: true })}
+        ${camp({ id: 'd-model', et: 'Model d’acta', valor: O.model })}
+        ${camp({ id: 'd-num_acta', et: 'Número d’acta', valor: O.num_acta, req: true })}
+        ${camp({ id: 'd-agents', et: 'Agents actuants', valor: (O.agents || []).join(' - '), ajuda: 'Números separats per guions o espais' })}
+        ${camp({ id: 'd-data_fets', et: 'Data dels fets', tipus: 'date', valor: O.data_fets, req: true })}
+        ${camp({ id: 'd-hora_fets', et: 'Hora', tipus: 'time', valor: O.hora_fets })}
+        ${camp({ id: 'd-data_entrada', et: 'Entrada a la DG', tipus: 'date', valor: O.data_entrada || avui(), req: true })}
+      </div>
+      <h3 class="sec">Localització</h3><div class="camps">
+        ${camp({ id: 'd-comarca', et: 'Comarca', tipus: 'select', opcions: (S.cat.comarques || []).map(c => ({ v: c.nom, t: c.nom })), valor: L.comarca, req: true })}
+        ${camp({ id: 'd-municipi', et: 'Terme municipal', valor: L.municipi, req: true })}
+        ${camp({ id: 'd-paratge', et: 'Paratge', valor: L.paratge })}
+        ${camp({ id: 'd-utm_x', et: 'UTM X (ETRS89)', tipus: 'number', valor: L.utm?.x })}
+        ${camp({ id: 'd-utm_y', et: 'UTM Y (ETRS89)', tipus: 'number', valor: L.utm?.y })}
+        ${camp({ id: 'd-ein', et: 'EIN', valor: L.ein })}
+        ${camp({ id: 'd-enp', et: 'Espai natural protegit', tipus: 'select', opcions: [{ v: 'FORA', t: 'Fora d’espai natural protegit' }, ...espaisNaturals().map(u => ({ v: u.codi, t: u.nom }))], valor: enpVal, ampla: true })}
+      </div>
+      <h3 class="sec">Matèria i fets</h3><div class="camps">
+        ${camp({ id: 'd-materia', et: 'Matèria marcada a l’acta', tipus: 'checks', opcions: opcionsCat('materies_car'), valor: e.materia_car || [], ampla: true })}
+        ${camp({ id: 'd-materia_altres', et: 'Altres (matèria)', valor: e.materia_car_altres })}
+        ${camp({ id: 'd-tematica', et: 'Temàtica (DGPAMN)', tipus: 'select', opcions: opcionsCat('tematiques'), valor: e.tematica, ajuda: 'Es pot fixar en la validació.' })}
+        ${camp({ id: 'd-fets', et: 'Descripció dels fets denunciats', tipus: 'textarea', valor: e.fets, req: true, ampla: true, files: 4 })}
+        ${camp({ id: 'd-observacions', et: 'Observacions / al·legacions in situ', tipus: 'textarea', valor: e.observacions, ampla: true })}
+        <div class="camp ampla"><label>Espècies afectades <span class="unitat">(nom, exemplars, morts, ferits)</span></label><div id="d-especies">${(e.especies || []).map(filaEspecie).join('')}</div>
+          <button type="button" class="btn-link" data-afegeix-especie>＋ Afegeix una espècie</button></div>
+        ${camp({ id: 'd-doc', et: 'Documentació adjunta', tipus: 'checks', opcions: [{ v: 'informe_complementari', t: 'Informe complementari' }, { v: 'reportatge_fotografic', t: 'Reportatge fotogràfic' }, { v: 'actes', t: 'Actes' }],
+          valor: ['informe_complementari', 'reportatge_fotografic', 'actes'].filter(k => D[k]), ampla: true })}
+        ${camp({ id: 'd-doc_actes_num', et: 'Actes núm.', valor: D.actes_num })}
+        ${camp({ id: 'd-doc_altres', et: 'Altra documentació', valor: D.altres })}
+      </div>
+      <h3 class="sec">Informe complementari del CAR</h3><div class="camps">
+        ${camp({ id: 'd-ic_servei', et: 'Núm. de servei', valor: IC.servei })}
+        ${camp({ id: 'd-ic_data', et: 'Data de l’informe', tipus: 'date', valor: IC.data })}
+        ${camp({ id: 'd-ic_text', et: 'Descripció dels fets i conclusions de l’informe', tipus: 'textarea', valor: IC.text, ampla: true, files: 6 })}
+      </div>
+      <h3 class="sec">Presumpta persona infractora</h3><div class="camps">
+        ${camp({ id: 'p-tipus', et: 'Tipus', tipus: 'select', senseBuit: true, opcions: [{ v: 'fisica', t: 'Persona física' }, { v: 'juridica', t: 'Persona jurídica' }], valor: p.tipus || 'fisica' })}
+        ${camp({ id: 'p-nif', et: 'DNI / NIF', valor: p.nif, req: true })}
+        ${camp({ id: 'p-nom', et: 'Nom i cognoms / raó social', valor: p.nom, req: true })}
+        ${camp({ id: 'p-adreca', et: 'Adreça', valor: p.adreca })}
+        ${camp({ id: 'p-poblacio', et: 'Població', valor: p.poblacio })}
+        ${camp({ id: 'p-email', et: 'Correu electrònic', valor: p.email })}
+        ${camp({ id: 'p-telefon', et: 'Telèfon', valor: p.telefon })}
+      </div><div id="p-avis"></div>`;
+  }
+  const normNif = t => String(t || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+  function avisPersona(fons, idExp) {
+    const nif = normNif(val(fons, 'p-nif')), p = nif && S.persones.find(x => normNif(x.nif) === nif);
+    const altres = p ? expedientsDePersona(p.id).filter(x => x.id !== idExp) : [];
+    $('#p-avis', fons).innerHTML = p ? `<div class="avis-box">Aquesta persona ja consta al registre (${esc(p.nom)}). ${altres.length ? `Té <strong>${altres.length}</strong> expedient(s) més: ${altres.map(x => esc(x.id)).join(', ')}. Pot ser rellevant per a la reincidència.` : 'No té cap altre expedient.'} En desar, s'enllaçarà a la mateixa persona.</div>` : '';
+  }
+  /**
+   * Prepara el formulari: espècies, avís de persona i zona de PDF.
+   * Es poden deixar diversos PDF alhora: l'acta omple els camps primer i l'informe només omple els que quedin buits.
+   */
+  function enObrirDenuncia(fons, estatLectura, idExp) {
+    fons.addEventListener('click', ev => {
+      if (ev.target.closest('[data-afegeix-especie]')) $('#d-especies', fons).insertAdjacentHTML('beforeend', filaEspecie());
+      const t = ev.target.closest('[data-treu-especie]'); if (t) t.closest('.fila-especie').remove();
+    });
+    $('#p-nif', fons).addEventListener('change', () => avisPersona(fons, idExp));
+    avisPersona(fons, idExp);
+    const zona = $('#zona-pdf', fons), inp = $('#fitxer-acta', fons);
+    zona.addEventListener('click', () => inp.click());
+    zona.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); inp.click(); } });
+    zona.addEventListener('dragover', ev => { ev.preventDefault(); zona.classList.add('sobre'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('sobre'));
+    zona.addEventListener('drop', ev => { ev.preventDefault(); zona.classList.remove('sobre'); llegeixTots([...ev.dataTransfer.files]); });
+    inp.addEventListener('change', () => { llegeixTots([...inp.files]); inp.value = ''; });
+
+    const marca = (el, font) => {
+      const c = el.closest('.camp'); c.classList.add('llegit');
+      const l = c.querySelector('label');
+      if (l && !l.querySelector('.marca-llegit')) l.insertAdjacentHTML('beforeend', ` <span class="marca-llegit">${font === 'informe' ? "de l'informe" : "de l'acta"}</span>`);
+    };
+    /** Posa un valor a un camp. Amb nomesBuit, no sobreescriu el que ja hi hagi. */
+    const posa = (id, v, font, nomesBuit) => {
+      const el = $('#' + id, fons);
+      if (!el || v == null || v === '') return 0;
+      if (nomesBuit && el.value.trim() !== '' && !(id === 'd-data_entrada')) return 0;
+      if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === String(v))) return 0;
+      el.value = v; marca(el, font); return 1;
+    };
+    async function llegeixTots(fitxers) {
+      const est = $('#estat-lectura', fons);
+      const pdfs = fitxers.filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+      if (!pdfs.length) { est.innerHTML = `<div class="error-box">Els fitxers han de ser PDF.</div>`; return; }
+      est.innerHTML = `<div class="info-box">Llegint ${pdfs.length === 1 ? 'el PDF' : `${pdfs.length} PDF`}…</div>`;
+      const llegits = [];
+      for (const f of pdfs) {
+        try { llegits.push({ f, ...(await llegeixPdfCar(f)) }); }
+        catch (err) { llegits.push({ f, tipus: 'error', missatge: err.message }); }
+      }
+      // L'acta primer: té prioritat sobre l'informe
+      llegits.sort((a, b) => ['acta', 'informe', 'error'].indexOf(a.tipus) - ['acta', 'informe', 'error'].indexOf(b.tipus));
+      const missatges = [], avisos = [];
+      let acta = null, informe = null;
+      for (const l of llegits) {
+        if (l.tipus === 'error') { missatges.push(`<div class="error-box">✕ <strong>${esc(l.f.name)}</strong>: ${esc(l.missatge)}</div>`); continue; }
+        if (l.tipus === 'acta') {
+          acta = l.dades; estatLectura.acta = l.f;
+          missatges.push(`<div class="info-box">✔ Acta <strong>${esc([acta.model, acta.num_acta].filter(Boolean).join(' '))}</strong> (${esc(l.f.name)}): s'han omplert <strong>${omplaActa(acta, !!idExp)}</strong> camps.</div>`);
+        }
+        if (l.tipus === 'informe') {
+          informe = l.dades; estatLectura.informe = l.f;
+          missatges.push(`<div class="info-box">✔ Informe complementari${informe.servei ? ` núm. <strong>${esc(informe.servei)}</strong>` : ''} (${esc(l.f.name)}): s'han omplert <strong>${omplaInforme(informe)}</strong> camps.</div>`);
+        }
+      }
+      const actaForm = { model: val(fons, 'd-model'), num: val(fons, 'd-num_acta') };
+      if (informe) {
+        if (informe.num_acta && actaForm.num && informe.num_acta !== actaForm.num) avisos.push(`L'informe fa referència a l'acta <strong>${esc([informe.model, informe.num_acta].filter(Boolean).join('-'))}</strong>, però l'acta del formulari és la <strong>${esc(actaForm.num)}</strong>. Comprova que siguin del mateix expedient.`);
+        if (informe.p_nif && val(fons, 'p-nif') && normNif(informe.p_nif) !== normNif(val(fons, 'p-nif'))) avisos.push(`El DNI de l'informe (${esc(informe.p_nif)}) no coincideix amb el de l'acta (${esc(val(fons, 'p-nif'))}).`);
+        if (informe.data && acta?.data_fets && informe.data !== acta.data_fets) avisos.push(`La data de l'informe (${esc(fmtData(informe.data))}) no coincideix amb la dels fets de l'acta (${esc(fmtData(acta.data_fets))}).`);
+        if (informe.utm_x && acta?.utm_x && Math.hypot(informe.utm_x - acta.utm_x, (informe.utm_y || 0) - (acta.utm_y || 0)) > 500) avisos.push(`Les coordenades de l'informe (X ${informe.utm_x}, Y ${informe.utm_y}) són a més de 500 m de les de l'acta.`);
+        if (!acta && !idExp) avisos.push("Falta l'acta de denúncia: s'han omplert les dades que conté l'informe. Afegeix-hi l'acta si la tens.");
+      }
+      const materies = valChecks(fons, 'd-materia');
+      if (MATERIES_NO_COMPETENCIA.some(m => materies.includes(m)) && !materies.includes('espais_naturals') && !val(fons, 'd-enp'))
+        avisos.push(`La matèria marcada (${esc(materies.map(m => etCat('materies_car', m)).join(', '))}) no és competència de la DG si no hi ha afectació a espècies protegides o a un espai natural protegit. Es valorarà en la validació.`);
+      const dup = actaForm.num && S.exp.find(x => x.id !== idExp && x.origen?.num_acta === actaForm.num && (x.origen.model || '') === (actaForm.model || ''));
+      if (dup) avisos.push(`Ja hi ha l'expedient <strong>${esc(dup.id)}</strong> amb aquesta mateixa acta.`);
+      avisPersona(fons, idExp);
+      est.innerHTML = missatges.join('') + avisos.map(a => `<div class="avis-box">⚠ ${a}</div>`).join('')
+        + (acta || informe ? `<p class="text-small text-muted">Els camps omplerts surten en verd. Revisa'ls abans de desar.</p>` : '');
+    }
+    function omplaActa(r, nomesBuit) {
+      let n = 0;
+      const ps = (id, v) => { n += posa(id, v, 'acta', nomesBuit); };
+      ps('d-model', r.model); ps('d-num_acta', r.num_acta); ps('d-agents', r.agents); ps('d-data_fets', r.data_fets); ps('d-hora_fets', r.hora_fets);
+      ps('d-comarca', r.comarca); ps('d-municipi', r.municipi); ps('d-paratge', r.paratge); ps('d-utm_x', r.utm_x); ps('d-utm_y', r.utm_y);
+      ps('d-ein', r.ein); ps('d-enp', r.enp); ps('d-materia_altres', r.materia_car_altres); ps('d-fets', r.fets); ps('d-observacions', r.observacions);
+      ps('d-doc_actes_num', r.doc_actes_num); ps('d-doc_altres', r.doc_altres);
+      ps('p-nif', r.p_nif); ps('p-nom', r.p_nom); ps('p-adreca', r.p_adreca); ps('p-poblacio', r.p_poblacio); ps('p-email', r.p_email); ps('p-telefon', r.p_telefon);
+      if (r.p_nif && /^[A-HJNP-SUVW]/i.test(r.p_nif)) ps('p-tipus', 'juridica');
+      if (r.comarca && !$('#d-comarca', fons).value) toast(`La comarca «${r.comarca}» de l'acta no és a la llista: tria-la a mà.`, 'avis');
+      if (r.materia_car.length && !(nomesBuit && valChecks(fons, 'd-materia').length)) {
+        $$('input[name="d-materia"]', fons).forEach(i => { i.checked = r.materia_car.includes(i.value); });
+        marca($('#d-materia', fons), 'acta'); n++;
+      }
+      const docs = { informe_complementari: r.doc_informe, reportatge_fotografic: r.doc_reportatge, actes: r.doc_actes };
+      $$('input[name="d-doc"]', fons).forEach(i => { if (docs[i.value]) i.checked = true; });
+      marca($('#d-doc', fons), 'acta');
+      return n;
+    }
+    function omplaInforme(r) {
+      let n = 0;
+      const ps = (id, v) => { n += posa(id, v, 'informe', true); };
+      ps('d-model', r.model); ps('d-num_acta', r.num_acta); ps('d-agents', r.agents); ps('d-data_fets', r.data);
+      ps('d-comarca', r.comarca); ps('d-municipi', r.municipi); ps('d-paratge', r.paratge); ps('d-utm_x', r.utm_x); ps('d-utm_y', r.utm_y); ps('d-enp', r.enp);
+      ps('d-fets', r.descripcio);
+      ps('p-nif', r.p_nif); ps('p-nom', r.p_nom); ps('p-adreca', r.p_adreca); ps('p-poblacio', r.p_poblacio); ps('p-email', r.p_email); ps('p-telefon', r.p_telefon);
+      // Els camps propis de l'informe sempre es posen
+      n += posa('d-ic_servei', r.servei, 'informe') + posa('d-ic_data', r.data, 'informe') + posa('d-ic_text', r.text, 'informe');
+      const ic = $('input[name="d-doc"][value="informe_complementari"]', fons); if (ic) ic.checked = true;
+      return n;
+    }
+  }
+  function recullDenuncia(fons) {
+    const enp = val(fons, 'd-enp');
+    const especies = $$('.fila-especie', fons).map(f => ({
+      nom: $('.e-nom', f).value.trim(), exemplars: $('.e-ex', f).value === '' ? null : +$('.e-ex', f).value,
+      morts: $('.e-morts', f).value === '' ? null : +$('.e-morts', f).value, ferits: $('.e-ferits', f).value === '' ? null : +$('.e-ferits', f).value,
+    })).filter(s => s.nom);
+    const docs = valChecks(fons, 'd-doc');
+    const ic = { servei: val(fons, 'd-ic_servei'), data: val(fons, 'd-ic_data'), text: val(fons, 'd-ic_text') };
+    return {
+      exp: {
+        origen: { model: val(fons, 'd-model'), num_acta: val(fons, 'd-num_acta'), denunciant_tipus: val(fons, 'd-denunciant'),
+          agents: (val(fons, 'd-agents') || '').split(/[\s,;/-]+/).map(x => x.trim()).filter(Boolean),
+          data_fets: val(fons, 'd-data_fets'), hora_fets: val(fons, 'd-hora_fets'), data_entrada: val(fons, 'd-data_entrada') },
+        localitzacio: { comarca: val(fons, 'd-comarca'), municipi: val(fons, 'd-municipi'), paratge: val(fons, 'd-paratge'),
+          utm: val(fons, 'd-utm_x') && val(fons, 'd-utm_y') ? { x: val(fons, 'd-utm_x'), y: val(fons, 'd-utm_y') } : null,
+          ein: val(fons, 'd-ein'), enp: enp && enp !== 'FORA' ? enp : null, dins_enp: enp === 'FORA' ? false : enp ? true : null },
+        materia_car: valChecks(fons, 'd-materia'), materia_car_altres: val(fons, 'd-materia_altres'), tematica: val(fons, 'd-tematica'),
+        fets: val(fons, 'd-fets'), observacions: val(fons, 'd-observacions'), especies,
+        documentacio_adjunta: { informe_complementari: docs.includes('informe_complementari'), reportatge_fotografic: docs.includes('reportatge_fotografic'),
+          actes: docs.includes('actes'), actes_num: val(fons, 'd-doc_actes_num'), altres: val(fons, 'd-doc_altres') },
+        informe_car: ic.servei || ic.data || ic.text ? ic : null,
+      },
+      persona: { tipus: val(fons, 'p-tipus'), nif: (val(fons, 'p-nif') || '').toUpperCase(), nom: val(fons, 'p-nom'), adreca: val(fons, 'p-adreca'),
+        poblacio: val(fons, 'p-poblacio'), email: val(fons, 'p-email'), telefon: val(fons, 'p-telefon') },
+    };
+  }
+  const validaDenuncia = fons => {
+    const ok = requerits(fons, ['d-num_acta', 'd-data_fets', 'd-data_entrada', 'd-comarca', 'd-municipi', 'd-fets', 'p-nif', 'p-nom']);
+    if (!ok) fons.querySelector('.te-error')?.scrollIntoView({ block: 'center' });
+    return ok;
+  };
+  /** Crea o actualitza la persona i en retorna l'identificador. */
+  async function desaPersona(dades) {
+    const existent = S.persones.find(x => normNif(x.nif) === normNif(dades.nif));
+    if (!existent) return (await desaRegistre('persona', { ...dades }, { esAlta: true, accio: 'Alta de persona denunciada' })).id;
+    const canvis = Object.keys(dades).filter(k => dades[k] != null && dades[k] !== existent[k]);
+    if (canvis.length) await desaRegistre('persona', { ...existent, ...Object.fromEntries(canvis.map(k => [k, dades[k]])) }, { accio: 'Actualitza les dades de la persona', detall: canvis.join(', ') });
+    return existent.id;
+  }
+  /** Desa a la carpeta de treball els PDF llegits (acta i informe) i n'anota el camí a l'expedient. */
+  async function desaPdfs(exp, estatLectura) {
+    const fitxers = [['acta', estatLectura.acta, CONFIG.CARPETA_ACTES, 'fitxer_acta'], ['informe', estatLectura.informe, CONFIG.CARPETA_INFORMES, 'fitxer_informe']].filter(x => x[1]);
+    if (!fitxers.length) return exp;
+    if (!Carpeta.activa()) {
+      toast(`${fitxers.length === 2 ? "L'acta i l'informe" : fitxers[0][0] === 'acta' ? "L'acta" : "L'informe"} en PDF no s'han desat perquè no hi ha cap carpeta de treball connectada.`, 'avis', 9000);
+      return exp;
+    }
+    const origen = { ...exp.origen }, num = String(exp.origen.num_acta || '').replace(/[^\w-]+/g, '_');
+    for (const [tipus, f, dir, camp] of fitxers) {
+      const cami = `${dir}/${exp.id}_${tipus}_${num}.pdf`;
+      await Carpeta.escriuBlob(cami, f);
+      origen[camp] = cami;
+    }
+    return desaRegistre('expedient', { ...exp, origen }, { accio: 'Desa els PDF del CAR', detall: fitxers.map(x => x[0]).join(' i ') });
+  }
+
+  async function novaDenuncia() {
+    if (!(await requereix(['juridic']))) return;
+    const estatLectura = { acta: null, informe: null };
+    const r = await finestra({
+      titol: '＋ Nova denúncia', ampla: true, cos: cosDenuncia({}, {}, true),
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa l’entrada', accio: 'si', principal: true, validar: validaDenuncia, recull: recullDenuncia }],
+      enObrir: fons => enObrirDenuncia(fons, estatLectura, null),
+    });
+    if (r?.accio !== 'si') return;
+    const { exp: d, persona } = r.dades;
+    try {
+      const persona_id = await desaPersona(persona);
+      const llegits = [estatLectura.acta && 'acta', estatLectura.informe && 'informe'].filter(Boolean);
+      let exp = await desaRegistre('expedient', {
+        estat: 'entrada', ...d, persona_id, tipificacio: { norma: null, article: null, qualificacio: null }, assignacio: { juridic: S.usuari.nom, tecnic: null },
+        validacio: null, informes: [], instruccio: null, resolucio: null, recursos: [], documents: [], origen: { ...d.origen, fitxer_acta: null, fitxer_informe: null },
+      }, { esAlta: true, accio: 'Entrada de la denúncia', detall: `Acta ${[d.origen.model, d.origen.num_acta].filter(Boolean).join(' ')}${llegits.length ? ` · llegit del PDF: ${llegits.join(' i ')}` : ''}` });
+      exp = await desaPdfs(exp, estatLectura);
+      toast(`Expedient ${exp.id} creat.`);
+      Tramitacio.obre(exp.id);
+      refrescaTot();
+    } catch (e) { console.error(e); }
+  }
+  async function edita(e) {
+    if (!(await requereix(['juridic']))) return;
+    const estatLectura = { acta: null, informe: null };
+    const r = await finestra({
+      titol: `✎ Dades de la denúncia · ${esc(e.id)}`, ampla: true, cos: cosDenuncia(e, personaDe(e) || {}, false),
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa els canvis', accio: 'si', principal: true, validar: validaDenuncia, recull: recullDenuncia }],
+      enObrir: fons => enObrirDenuncia(fons, estatLectura, e.id),
+    });
+    if (r?.accio !== 'si') return;
+    const { exp: d, persona } = r.dades;
+    const persona_id = await desaPersona(persona);
+    const desat = await canviaExpedient(e, 'Edita les dades de la denúncia', c => {
+      Object.assign(c, d, { persona_id, origen: { ...c.origen, ...d.origen } });
+    });
+    if (estatLectura.acta || estatLectura.informe) { await desaPdfs(desat, estatLectura); refrescaTot(); }
+  }
+  async function obrePdf(cami, nom) {
+    const f = cami && await Carpeta.llegeixBlob(cami);
+    if (!f) return toast(`No s’ha trobat ${nom} a la carpeta de treball.`, 'error');
+    window.open(URL.createObjectURL(new Blob([f], { type: 'application/pdf' })), '_blank', 'noopener');
+  }
+  const obreActa = e => obrePdf(e.origen?.fitxer_acta, "l'acta");
+  const obreInformeCar = e => obrePdf(e.origen?.fitxer_informe, "l'informe complementari");
+
+  // ---------- Fase 1: validació ----------
+  async function valida(e) {
+    if (!(await requereix(['juridic']))) return;
+    opcionsTecnics();
+    const avisComp = MATERIES_NO_COMPETENCIA.some(m => (e.materia_car || []).includes(m)) && !(e.materia_car || []).includes('espais_naturals');
+    const r = await finestra({
+      titol: `✔ Validació inicial · ${esc(e.id)}`, ampla: true,
+      cos: `${avisComp ? `<div class="fc-nota">La matèria marcada pel denunciant (${esc((e.materia_car || []).map(m => etCat('materies_car', m)).join(', '))}) no és competència de la DGPAMN. Comprova si els fets afecten espècies protegides, hàbitats o un espai natural protegit; si no és així, deriva l'expedient a l'òrgan competent.</div>` : ''}
+        <div class="camps">
+          ${camp({ id: 'v-resultat', et: 'Resultat', tipus: 'select', opcions: opcionsCat('resultats_validacio'), req: true })}
+          ${camp({ id: 'v-tematica', et: 'Temàtica', tipus: 'select', opcions: opcionsCat('tematiques'), valor: e.tematica })}
+          ${camp({ id: 'v-motiu', et: 'Motivació', tipus: 'textarea', ampla: true, ajuda: 'Obligatòria si es deriva o s’arxiva.' })}
+        </div>
+        <div id="v-derivacio" hidden><div class="camps">${camp({ id: 'v-derivada', et: 'Òrgan al qual es deriva', ampla: true })}</div></div>
+        <div id="v-informe" hidden><h3 class="sec">Petició d'informe tècnic</h3><div class="camps">
+          ${camp({ id: 'v-tecnic', et: 'Tècnic/a', llista: 'dl-tecnics', ajuda: 'Si es deixa en blanc, el pot agafar qualsevol tècnic/a.' })}
+          ${camp({ id: 'v-limit', et: 'Data límit', tipus: 'date', valor: sumaDies(avui(), termini('dies_informe_tecnic') || 15) })}
+          ${camp({ id: 'v-preguntes', et: 'Qüestions que ha de respondre l’informe', tipus: 'textarea', ampla: true, files: 4,
+            valor: 'Valoració dels fets denunciats i de l’afectació a les espècies, als hàbitats o a l’espai natural protegit; valoració econòmica del dany; mesures de reparació; i qualificació proposada de la infracció.' })}
+        </div></div>`,
+      enObrir: fons => {
+        const sel = $('#v-resultat', fons);
+        sel.addEventListener('change', () => { $('#v-informe', fons).hidden = sel.value !== 'admesa'; $('#v-derivacio', fons).hidden = sel.value !== 'no_competencia'; });
+      },
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa la validació', accio: 'si', principal: true,
+        validar: fons => {
+          const res = val(fons, 'v-resultat');
+          return [marcaError(fons, 'v-resultat', !!res), marcaError(fons, 'v-motiu', res === 'admesa' || !!val(fons, 'v-motiu')),
+            marcaError(fons, 'v-derivada', res !== 'no_competencia' || !!val(fons, 'v-derivada'))].every(Boolean);
+        },
+        recull: fons => ({ resultat: val(fons, 'v-resultat'), tematica: val(fons, 'v-tematica'), motiu: val(fons, 'v-motiu'), derivada_a: val(fons, 'v-derivada'),
+          tecnic: val(fons, 'v-tecnic'), data_limit: val(fons, 'v-limit'), preguntes: val(fons, 'v-preguntes') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    const v = r.dades;
+    await canviaExpedient(e, 'Validació inicial', c => {
+      c.validacio = { data: avui(), per: S.usuari.nom, resultat: v.resultat, motiu: v.motiu, derivada_a: v.derivada_a };
+      c.tematica = v.tematica || c.tematica;
+      if (v.resultat === 'admesa') {
+        c.informes = c.informes || [];
+        c.informes.push({ id: nouIdInforme(c.informes), ambit: 'expedient', moment: 'previ_incoacio', data_peticio: avui(), demanat_per: S.usuari.nom,
+          tecnic: v.tecnic, preguntes: v.preguntes, data_limit: v.data_limit, estat: 'demanat' });
+        c.assignacio = { ...(c.assignacio || {}), tecnic: v.tecnic };
+        c.estat = 'informe_tecnic';
+      } else {
+        c.arxiu = { data: avui(), per: S.usuari.nom, motiu: v.resultat === 'no_competencia' ? `Derivat a ${v.derivada_a}. ${v.motiu || ''}`.trim() : v.motiu };
+        c.estat = 'arxivat';
+      }
+    }, etCat('resultats_validacio', v.resultat));
+  }
+
+  // ---------- Fase 2: informes tècnics ----------
+  async function demanaInforme(e, rec = null) {
+    if (!(await requereix(['juridic']))) return;
+    opcionsTecnics();
+    const moment = rec ? 'recurs' : e.estat === 'instruccio' ? 'allegacions' : 'previ_incoacio';
+    const r = await finestra({
+      titol: `＋ Petició d'informe tècnic · ${esc(rec ? `${e.id} · ${rec.id}` : e.id)}`,
+      cos: `<div class="camps">
+        ${camp({ id: 'i-tecnic', et: 'Tècnic/a', llista: 'dl-tecnics', ajuda: 'Si es deixa en blanc, el pot agafar qualsevol tècnic/a.' })}
+        ${camp({ id: 'i-limit', et: 'Data límit', tipus: 'date', valor: sumaDies(avui(), termini('dies_informe_tecnic') || 15) })}
+        ${camp({ id: 'i-preguntes', et: 'Qüestions que ha de respondre l’informe', tipus: 'textarea', ampla: true, files: 4, req: true,
+          valor: moment === 'allegacions' ? 'Valoració tècnica de les al·legacions presentades i, si escau, revisió de la valoració del dany i de la qualificació proposada.' : moment === 'recurs' ? 'Valoració tècnica dels motius del recurs.' : '' })}</div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Demana l’informe', accio: 'si', principal: true, validar: f => requerits(f, ['i-preguntes']),
+        recull: f => ({ tecnic: val(f, 'i-tecnic'), data_limit: val(f, 'i-limit'), preguntes: val(f, 'i-preguntes') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    await canviaExpedient(e, rec ? `Demana informe del recurs ${rec.id}` : 'Demana informe tècnic', c => {
+      const cont = rec ? c.recursos.find(x => x.id === rec.id) : c;
+      cont.informes = cont.informes || [];
+      cont.informes.push({ id: nouIdInforme(cont.informes), ambit: rec ? 'recurs' : 'expedient', moment, data_peticio: avui(), demanat_per: S.usuari.nom, ...r.dades, estat: 'demanat' });
+      if (rec) cont.estat = 'informe';
+      else if (c.estat === 'informe_lliurat') c.estat = 'informe_tecnic';
+    }, r.dades.tecnic ? `Assignat a ${r.dades.tecnic}` : 'Sense tècnic assignat');
+  }
+  async function redactaInforme(e, rec, idInf) {
+    if (!(await requereix(['tecnic']))) return;
+    const cont = rec ? rec : e, inf = (cont.informes || []).find(i => i.id === idInf);
+    if (!inf) return;
+    const recull = f => ({ valoracio_danys: val(f, 'r-danys'), valoracio_economica: val(f, 'r-eco'), qualificacio_proposada: val(f, 'r-qual'),
+      mesures_reparacio: val(f, 'r-mesures'), conclusions: val(f, 'r-concl') });
+    const r = await finestra({
+      titol: `✎ ${esc(inf.id)} · ${esc(rec ? `${e.id} · ${rec.id}` : e.id)}`, ampla: true,
+      cos: `<div class="info-box"><strong>Qüestions plantejades pel jurídic:</strong><br>${esc(inf.preguntes || '—').replace(/\n/g, '<br>')}</div>
+        <p class="text-small text-muted">Fets: ${esc(e.fets || '')}</p>
+        <div class="camps">
+          ${camp({ id: 'r-danys', et: 'Valoració dels fets i dels danys', tipus: 'textarea', ampla: true, files: 4, valor: inf.valoracio_danys })}
+          ${camp({ id: 'r-eco', et: 'Valoració econòmica del dany (€)', tipus: 'number', valor: inf.valoracio_economica })}
+          ${camp({ id: 'r-qual', et: 'Qualificació proposada', tipus: 'select', opcions: opcionsCat('qualificacions'), valor: inf.qualificacio_proposada })}
+          ${camp({ id: 'r-mesures', et: 'Mesures de reparació o restitució', tipus: 'textarea', ampla: true, valor: inf.mesures_reparacio })}
+          ${camp({ id: 'r-concl', et: 'Conclusions', tipus: 'textarea', ampla: true, files: 4, valor: inf.conclusions, ajuda: 'Obligatòries per lliurar l’informe.' })}
+        </div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa l’esborrany', accio: 'esborrany', recull },
+        { text: 'Lliura l’informe', accio: 'lliura', principal: true, validar: f => requerits(f, ['r-concl']), recull }],
+    });
+    if (!r || r === 'no') return;
+    const lliura = r.accio === 'lliura';
+    await canviaExpedient(e, lliura ? `Lliura l'informe ${inf.id}` : `Desa l'esborrany de l'informe ${inf.id}`, c => {
+      const ct = rec ? c.recursos.find(x => x.id === rec.id) : c, i = ct.informes.find(x => x.id === idInf);
+      Object.assign(i, r.dades, { estat: lliura ? 'lliurat' : 'en_curs', tecnic: i.tecnic || S.usuari.nom });
+      if (lliura) {
+        Object.assign(i, { data_lliurament: avui(), redactat_per: S.usuari.nom });
+        const pendents = ct.informes.some(x => x.estat !== 'lliurat');
+        if (!rec && c.estat === 'informe_tecnic' && !pendents) c.estat = 'informe_lliurat';
+        if (rec && ct.estat === 'informe' && !pendents) ct.estat = 'presentat';
+      }
+    }, rec ? `Recurs ${rec.id}` : null);
+  }
+  const informe = e => demanaInforme(e);
+
+  // ---------- Fase 3: incoació i instrucció ----------
+  async function incoa(e) {
+    if (!(await requereix(['juridic']))) return;
+    const ultim = [...(e.informes || [])].reverse().find(i => i.estat === 'lliurat');
+    const tips = S.cat.tipificacions || [];
+    const r = await finestra({
+      titol: `⚖ Acord d'incoació · ${esc(e.id)}`, ampla: true,
+      cos: `${ultim ? `<div class="info-box">Informe ${esc(ultim.id)}: ${esc(ultim.conclusions || '')}${ultim.qualificacio_proposada ? ` · qualificació proposada: <strong>${esc(etCat('qualificacions', ultim.qualificacio_proposada))}</strong>` : ''}${ultim.valoracio_economica != null ? ` · dany valorat en ${esc(fmtEur(ultim.valoracio_economica))}` : ''}</div>` : ''}
+        <div class="camps">
+          ${camp({ id: 'n-data', et: 'Data de l’acord', tipus: 'date', valor: avui(), req: true })}
+          ${camp({ id: 'n-ref', et: 'Referència de l’acord' })}
+          ${camp({ id: 'n-notif', et: 'Data de notificació', tipus: 'date' })}
+          ${camp({ id: 'n-instructor', et: 'Instructor/a', valor: S.usuari.nom, req: true })}
+          ${tips.length ? camp({ id: 'n-tip', et: 'Tipificació', tipus: 'select', ampla: true, opcions: tips.map(t => ({ v: t.id, t: `${t.norma}, ${t.article} · ${etCat('qualificacions', t.qualificacio)} (${fmtEur(t.import_minim)} – ${fmtEur(t.import_maxim)})` })) }) : ''}
+          ${camp({ id: 'n-norma', et: 'Norma infringida', valor: e.tipificacio?.norma, ajuda: tips.length ? '' : 'Quan es carregui la taula de tipificacions es podrà triar d’una llista.' })}
+          ${camp({ id: 'n-article', et: 'Article', valor: e.tipificacio?.article })}
+          ${camp({ id: 'n-qual', et: 'Qualificació', tipus: 'select', opcions: opcionsCat('qualificacions'), valor: e.tipificacio?.qualificacio || ultim?.qualificacio_proposada, req: true })}
+          ${camp({ id: 'n-import', et: 'Import de la sanció proposada (€)', tipus: 'number' })}
+        </div>`,
+      enObrir: f => $('#n-tip', f)?.addEventListener('change', ev => {
+        const t = tips.find(x => x.id === ev.target.value); if (!t) return;
+        $('#n-norma', f).value = t.norma || ''; $('#n-article', f).value = t.article || ''; $('#n-qual', f).value = t.qualificacio || '';
+      }),
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Incoa l’expedient', accio: 'si', principal: true, validar: f => requerits(f, ['n-data', 'n-instructor', 'n-qual']),
+        recull: f => ({ data: val(f, 'n-data'), referencia: val(f, 'n-ref'), notificacio: val(f, 'n-notif'), instructor: val(f, 'n-instructor'),
+          norma: val(f, 'n-norma'), article: val(f, 'n-article'), qualificacio: val(f, 'n-qual'), import: val(f, 'n-import') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    const d = r.dades;
+    await canviaExpedient(e, 'Acord d’incoació', c => {
+      c.instruccio = { acord_incoacio: { data: d.data, referencia: d.referencia, notificacio: d.notificacio }, instructor: d.instructor, import_inicial: d.import, allegacions: [], proposta: null };
+      c.tipificacio = { norma: d.norma, article: d.article, qualificacio: d.qualificacio };
+      c.estat = 'instruccio';
+    }, `${etCat('qualificacions', d.qualificacio)}${d.import != null ? ' · ' + fmtEur(d.import) : ''}`);
+  }
+  async function allegacions(e) {
+    if (!(await requereix(['juridic']))) return;
+    const r = await finestra({
+      titol: `＋ Al·legacions · ${esc(e.id)}`,
+      cos: `<div class="camps">${camp({ id: 'a-data', et: 'Data de presentació', tipus: 'date', valor: avui(), req: true })}
+        ${camp({ id: 'a-resum', et: 'Resum de les al·legacions', tipus: 'textarea', ampla: true, files: 4, req: true })}</div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa', accio: 'si', principal: true, validar: f => requerits(f, ['a-data', 'a-resum']),
+        recull: f => ({ data: val(f, 'a-data'), resum: val(f, 'a-resum') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    await canviaExpedient(e, 'Registra al·legacions', c => { c.instruccio.allegacions = [...(c.instruccio.allegacions || []), r.dades]; }, fmtData(r.dades.data));
+  }
+  async function proposta(e) {
+    if (!(await requereix(['juridic']))) return;
+    const P = e.instruccio?.proposta || {};
+    const r = await finestra({
+      titol: `Proposta de resolució · ${esc(e.id)}`,
+      cos: `<div class="camps">${camp({ id: 'pr-data', et: 'Data', tipus: 'date', valor: P.data || avui(), req: true })}
+        ${camp({ id: 'pr-qual', et: 'Qualificació', tipus: 'select', opcions: opcionsCat('qualificacions'), valor: P.qualificacio || e.tipificacio?.qualificacio, req: true })}
+        ${camp({ id: 'pr-import', et: 'Import proposat (€)', tipus: 'number', valor: P.import ?? e.instruccio?.import_inicial })}
+        ${camp({ id: 'pr-notif', et: 'Data de notificació', tipus: 'date', valor: P.notificacio })}</div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa la proposta', accio: 'si', principal: true, validar: f => requerits(f, ['pr-data', 'pr-qual']),
+        recull: f => ({ data: val(f, 'pr-data'), qualificacio: val(f, 'pr-qual'), import: val(f, 'pr-import'), notificacio: val(f, 'pr-notif') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    await canviaExpedient(e, 'Proposta de resolució', c => { c.instruccio.proposta = r.dades; }, fmtEur(r.dades.import));
+  }
+
+  // ---------- Fase 4: resolució ----------
+  async function resol(e) {
+    if (!(await requereix(['juridic']))) return;
+    const P = e.instruccio?.proposta || {};
+    const r = await finestra({
+      titol: `⚖ Resolució · ${esc(e.id)}`, ampla: true,
+      cos: `<div class="camps">
+        ${camp({ id: 's-data', et: 'Data de la resolució', tipus: 'date', valor: avui(), req: true })}
+        ${camp({ id: 's-sentit', et: 'Sentit', tipus: 'select', opcions: opcionsCat('sentits_resolucio'), valor: 'sancio', req: true })}
+        ${camp({ id: 's-qual', et: 'Qualificació', tipus: 'select', opcions: opcionsCat('qualificacions'), valor: P.qualificacio || e.tipificacio?.qualificacio })}
+        ${camp({ id: 's-import', et: 'Import de la sanció (€)', tipus: 'number', valor: P.import ?? e.instruccio?.import_inicial })}
+        ${camp({ id: 's-mesures', et: 'Mesures accessòries', tipus: 'checks', opcions: opcionsCat('mesures_accessories'), ampla: true })}
+        ${camp({ id: 's-indem', et: 'Indemnització pels danys (€)', tipus: 'number', valor: [...(e.informes || [])].reverse().find(i => i.valoracio_economica != null)?.valoracio_economica })}
+        ${camp({ id: 's-notif', et: 'Data de notificació', tipus: 'date' })}</div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Resol l’expedient', accio: 'si', principal: true,
+        validar: f => [requerits(f, ['s-data', 's-sentit']), marcaError(f, 's-import', val(f, 's-sentit') !== 'sancio' || val(f, 's-import') != null, 'Indica l’import de la sanció.')].every(Boolean),
+        recull: f => ({ data: val(f, 's-data'), sentit: val(f, 's-sentit'), qualificacio: val(f, 's-qual'), import: val(f, 's-sentit') === 'sancio' ? val(f, 's-import') : null,
+          mesures: valChecks(f, 's-mesures'), indemnitzacio: valChecks(f, 's-mesures').includes('indemnitzacio') ? val(f, 's-indem') : null, notificacio: val(f, 's-notif') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    await canviaExpedient(e, 'Resolució', c => { c.resolucio = { ...r.dades, per: S.usuari.nom }; c.estat = 'resolt'; },
+      `${etCat('sentits_resolucio', r.dades.sentit)}${r.dades.import != null ? ' · ' + fmtEur(r.dades.import) : ''}`);
+  }
+  async function arxiva(e) {
+    if (!(await requereix(['juridic']))) return;
+    const r = await finestra({
+      titol: `Arxiu · ${esc(e.id)}`,
+      cos: `<div class="camps">${camp({ id: 'x-motiu', et: 'Motiu de l’arxiu', tipus: 'textarea', ampla: true, req: true })}</div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Arxiva', accio: 'si', principal: true, validar: f => requerits(f, ['x-motiu']), recull: f => ({ motiu: val(f, 'x-motiu') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    await canviaExpedient(e, 'Arxiu', c => { c.arxiu = { data: avui(), per: S.usuari.nom, motiu: r.dades.motiu }; c.estat = 'arxivat'; });
+  }
+  return { novaDenuncia, edita, obreActa, obreInformeCar, valida, informe, demanaInforme, redactaInforme, incoa, allegacions, proposta, resol, arxiva };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// MÒDUL 2 · RECURSOS
+// ════════════════════════════════════════════════════════════════════
+const Recursos = (() => {
+  const tots = () => S.exp.flatMap(e => (e.recursos || []).map(r => ({ e, r })));
+  const clau = (eid, rid) => `${eid}|${rid}`;
+  function pintaLlista() {
+    const sel = $('#rc-estat'), v = sel.value, ll = tots();
+    sel.innerHTML = `<option value="">Tots els estats</option>` + Object.entries(S.vars.estats_recurs || {}).map(([k, t]) => `<option value="${esc(k)}">${esc(t)} (${ll.filter(x => x.r.estat === k).length})</option>`).join('');
+    sel.value = v;
+    const q = norm($('#rc-cerca').value.trim()), estat = sel.value;
+    const els = ll.filter(({ e, r }) => (!estat || r.estat === estat) && (!q || norm([e.id, r.id, r.recurrent, r.motius, personaDe(e)?.nom].join(' ')).includes(q)))
+      .sort((a, b) => String(b.r.data_presentacio || '').localeCompare(String(a.r.data_presentacio || '')));
+    $('#rc-recompte').textContent = `${els.length} ${els.length === 1 ? 'recurs' : 'recursos'}`;
+    $('#rc-llista').innerHTML = els.map(({ e, r }) => {
+      const p = recursPendentPerMi(r), lim = r.estat !== 'resolt' && dataLimitRecurs(r);
+      return `<li><button type="button" data-clau="${esc(clau(e.id, r.id))}" class="${clau(e.id, r.id) === S.selRec ? 'sel' : ''}">
+        <span class="nom">${esc(e.id)} · ${esc(r.id)}</span>
+        <span class="sub">${esc(etCat('tipus_recurs', r.tipus))} · presentat el ${esc(fmtData(r.data_presentacio))}</span>
+        <span class="linia">${htmlEstatRec(r.estat)} ${p ? `<span class="marca" title="${esc(p)}">et toca</span>` : ''}
+          ${lim && diesFins(lim) <= (termini('dies_avis_abans') ?? 15) ? `<span class="marca">⏰ ${esc(textDies(diesFins(lim)))}</span>` : ''}</span></button></li>`;
+    }).join('') || `<li class="fitxa-buida">${ll.length ? 'Cap recurs coincideix amb la cerca.' : 'Encara no s’ha presentat cap recurs.'}</li>`;
+  }
+  function pintaFitxa() {
+    const [eid, rid] = (S.selRec || '').split('|'), e = expDe(eid), r = e?.recursos?.find(x => x.id === rid);
+    if (!r) { $('#rc-fitxa').innerHTML = `<div class="fitxa-buida">Selecciona un recurs de la llista o afegeix-ne un de nou.</div>`; return; }
+    const lim = dataLimitRecurs(r), bt = (a, t, p) => `<button type="button" class="btn ${p ? 'btn-primary' : 'btn-secondary'} btn-petit" data-accio="${a}">${t}</button>`;
+    const b = esJuridic() && r.estat !== 'resolt' ? [bt('resol', '⚖ Resol el recurs', true), bt('informe', '＋ Demana informe tècnic')] : [];
+    $('#rc-fitxa').innerHTML = `
+      <div class="fitxa-cap"><div><div class="id">${esc(e.id)} · ${esc(r.id)}</div><h2>${esc(etCat('tipus_recurs', r.tipus))}</h2><div>${htmlEstatRec(r.estat)}</div></div>
+        <div class="botons"><button type="button" class="btn btn-secondary btn-petit" data-ves-exp="${esc(e.id)}">Obre l'expedient ${esc(e.id)}</button></div></div>
+      <div class="accions-fitxa">${b.join('')}<span class="qui">${r.estat === 'resolt' ? 'Recurs resolt.' : r.estat === 'informe' ? 'Ara li toca al perfil <strong>Tècnic/a</strong>.' : 'Ara li toca al perfil <strong>Jurídic/a</strong>.'}</span></div>
+      <div class="fitxa-cos">
+        ${grup('Expedient recorregut', `<div class="camps">${vl('Expedient', `${e.id} · acta ${[e.origen?.model, e.origen?.num_acta].filter(Boolean).join(' ')}`)}${vlHtml('Estat', htmlEstat(e.estat))}
+          ${vl('Resolució recorreguda', e.resolucio ? `${etCat('sentits_resolucio', e.resolucio.sentit)} · ${fmtData(e.resolucio.data)}${e.resolucio.import != null ? ' · ' + fmtEur(e.resolucio.import) : ''}` : e.instruccio ? 'Acte de tràmit (expedient en instrucció)' : null, true)}</div>`)}
+        ${grup('Dades del recurs', `<div class="camps">${vl('Tipus', etCat('tipus_recurs', r.tipus))}${vl('Data de presentació', fmtData(r.data_presentacio))}${vl('Registre d’entrada', r.registre)}
+          ${vl('Recurrent', r.recurrent)}${vl('Suspensió de l’execució sol·licitada', r.suspensio ? 'Sí' : 'No')}
+          ${vlHtml('Termini per resoldre', lim ? `${esc(fmtData(lim))}${r.estat !== 'resolt' ? ` <span class="text-small text-muted">(${esc(textDies(diesFins(lim)))})</span>` : ''}` : '<span class="buit">—</span>')}
+          ${vl('Motius del recurs', r.motius, true)}</div>`)}
+        ${grup('Informes tècnics', (r.informes || []).map(i => Tramitacio.htmlInforme(i, { exp: e, rec: r })).join('') || '<p class="text-muted">No s’ha demanat cap informe.</p>', true, `${(r.informes || []).length}`)}
+        ${grup('Resolució del recurs', r.resolucio ? `<div class="camps">${vl('Sentit', etCat('sentits_recurs', r.resolucio.sentit))}${vl('Data', fmtData(r.resolucio.data))}
+          ${vl('Import resultant de la sanció', r.resolucio.import_resultant != null ? fmtEur(r.resolucio.import_resultant) : null)}${vl('Notificació', r.resolucio.notificacio ? fmtData(r.resolucio.notificacio) : null)}
+          ${vl('Fonamentació', r.resolucio.fonament, true)}${vl('Resolt per', r.resolucio.per)}</div>` : '<p class="text-muted">Pendent.</p>')}
+      </div>`;
+  }
+  function pinta() { pintaLlista(); pintaFitxa(); $('#btn-nou-recurs').hidden = !!S.usuari && !esJuridic(); }
+  function obre(eid, rid) { S.selRec = clau(eid, rid); if (modulActual !== 'recursos') mostraModul('recursos'); else pinta(); }
+
+  async function nou(eidPre) {
+    if (!(await requereix(['juridic']))) return;
+    const admesos = S.exp.filter(e => (S.vars.estats_que_admeten_recurs || []).includes(e.estat));
+    if (!admesos.length) return toast('No hi ha cap expedient incoat o resolt per recórrer.', 'avis');
+    const r = await finestra({
+      titol: '＋ Nou recurs', ampla: true,
+      cos: `<div class="camps">
+        ${camp({ id: 'rc-exp', et: 'Expedient recorregut', tipus: 'select', ampla: true, req: true, valor: eidPre,
+          opcions: admesos.map(e => ({ v: e.id, t: `${e.id} · acta ${[e.origen?.model, e.origen?.num_acta].filter(Boolean).join(' ')} · ${e.localitzacio?.municipi || ''} · ${etEstat(e.estat)}` })) })}
+        ${camp({ id: 'rc-tipus', et: 'Tipus de recurs', tipus: 'select', opcions: opcionsCat('tipus_recurs'), req: true })}
+        ${camp({ id: 'rc-data', et: 'Data de presentació', tipus: 'date', valor: avui(), req: true })}
+        ${camp({ id: 'rc-reg', et: 'Registre d’entrada' })}
+        ${camp({ id: 'rc-recurrent', et: 'Recurrent', req: true })}
+        ${camp({ id: 'rc-susp', et: 'Suspensió de l’execució', tipus: 'bool', text: 'Se sol·licita la suspensió' })}
+        ${camp({ id: 'rc-motius', et: 'Motius del recurs', tipus: 'textarea', ampla: true, files: 5, req: true })}</div>`,
+      enObrir: f => {
+        const posa = () => { const e = expDe(val(f, 'rc-exp')); if (e && !val(f, 'rc-recurrent')) $('#rc-recurrent', f).value = personaDe(e)?.nom || ''; };
+        $('#rc-exp', f).addEventListener('change', () => { $('#rc-recurrent', f).value = ''; posa(); }); posa();
+      },
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Desa el recurs', accio: 'si', principal: true, validar: f => requerits(f, ['rc-exp', 'rc-tipus', 'rc-data', 'rc-recurrent', 'rc-motius']),
+        recull: f => ({ exp: val(f, 'rc-exp'), tipus: val(f, 'rc-tipus'), data_presentacio: val(f, 'rc-data'), registre: val(f, 'rc-reg'), recurrent: val(f, 'rc-recurrent'),
+          suspensio: val(f, 'rc-susp'), motius: val(f, 'rc-motius') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    const { exp: eid, ...d } = r.dades, e = expDe(eid);
+    let rid;
+    await canviaExpedient(e, 'Presentació de recurs', c => {
+      c.recursos = c.recursos || [];
+      rid = 'R' + (c.recursos.length + 1);
+      c.recursos.push({ id: rid, ...d, estat: 'presentat', informes: [], resolucio: null, creat: ara(), creat_per: S.usuari.nom });
+    }, etCat('tipus_recurs', d.tipus));
+    obre(eid, rid);
+  }
+  async function resol(e, rec) {
+    if (!(await requereix(['juridic']))) return;
+    const r = await finestra({
+      titol: `⚖ Resolució del recurs · ${esc(e.id)} · ${esc(rec.id)}`,
+      cos: `<div class="camps">
+        ${camp({ id: 'rr-data', et: 'Data de la resolució', tipus: 'date', valor: avui(), req: true })}
+        ${camp({ id: 'rr-sentit', et: 'Sentit', tipus: 'select', opcions: opcionsCat('sentits_recurs'), req: true })}
+        ${camp({ id: 'rr-import', et: 'Import resultant de la sanció (€)', tipus: 'number', valor: e.resolucio?.import, ajuda: 'Si s’estima en part i canvia l’import.' })}
+        ${camp({ id: 'rr-notif', et: 'Data de notificació', tipus: 'date' })}
+        ${camp({ id: 'rr-fonament', et: 'Fonamentació', tipus: 'textarea', ampla: true, files: 4 })}</div>`,
+      botons: [{ text: 'Cancel·la', accio: 'no' }, { text: 'Resol el recurs', accio: 'si', principal: true, validar: f => requerits(f, ['rr-data', 'rr-sentit']),
+        recull: f => ({ data: val(f, 'rr-data'), sentit: val(f, 'rr-sentit'), import_resultant: val(f, 'rr-import'), notificacio: val(f, 'rr-notif'), fonament: val(f, 'rr-fonament') }) }],
+    });
+    if (r?.accio !== 'si') return;
+    await canviaExpedient(e, `Resolució del recurs ${rec.id}`, c => {
+      const x = c.recursos.find(y => y.id === rec.id);
+      x.resolucio = { ...r.dades, per: S.usuari.nom }; x.estat = 'resolt';
+    }, etCat('sentits_recurs', r.dades.sentit));
+  }
+
+  $('#rc-cerca').addEventListener('input', pintaLlista);
+  $('#rc-estat').addEventListener('change', pintaLlista);
+  $('#rc-llista').addEventListener('click', ev => { const b = ev.target.closest('[data-clau]'); if (b) { S.selRec = b.dataset.clau; pinta(); } });
+  $('#btn-nou-recurs').addEventListener('click', () => nou());
+  $('#rc-fitxa').addEventListener('click', ev => {
+    const [eid, rid] = (S.selRec || '').split('|'), e = expDe(eid), rec = e?.recursos?.find(x => x.id === rid);
+    if (!rec) return;
+    if (ev.target.closest('[data-ves-exp]')) return Tramitacio.obre(e.id);
+    const inf = ev.target.closest('[data-inf]'); if (inf) return Accions.redactaInforme(e, rec, inf.dataset.inf);
+    const a = ev.target.closest('[data-accio]')?.dataset.accio;
+    if (a === 'resol') resol(e, rec);
+    if (a === 'informe') Accions.demanaInforme(e, rec);
+  });
+  return { pinta, obre, nou };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// MÒDUL 3 · DADES (sense dades personals)
+// ════════════════════════════════════════════════════════════════════
+const Dades = (() => {
+  const any = e => (e.origen?.data_fets || '').slice(0, 4) || null;
+  const qualDe = e => e.resolucio?.qualificacio || e.instruccio?.proposta?.qualificacio || e.tipificacio?.qualificacio || null;
+  const reincident = e => !!e.persona_id && expedientsDePersona(e.persona_id).length > 1;
+  const importDe = e => {
+    const rr = (e.recursos || []).filter(r => r.resolucio?.import_resultant != null).at(-1);
+    return rr ? rr.resolucio.import_resultant : e.resolucio?.sentit === 'sancio' ? e.resolucio.import : null;
+  };
+  const FILTRES = [
+    { k: 'ambit', et: 'Àmbit territorial', v: e => { const a = ambitDe(e.localitzacio?.comarca); return a ? [nomUnitat(a)] : []; } },
+    { k: 'comarca', et: 'Comarca', v: e => [e.localitzacio?.comarca] },
+    { k: 'municipi', et: 'Municipi', v: e => [e.localitzacio?.municipi], cerca: true },
+    { k: 'enp', et: 'Espai natural protegit', v: e => [e.localitzacio?.enp ? nomUnitat(e.localitzacio.enp) : e.localitzacio?.dins_enp === false ? 'Fora d’ENP' : 'Sense indicar'] },
+    { k: 'tematica', et: 'Temàtica', v: e => [e.tematica ? etCat('tematiques', e.tematica) : 'Sense temàtica'] },
+    { k: 'materia', et: 'Matèria (denunciant)', v: e => (e.materia_car || []).map(m => etCat('materies_car', m)) },
+    { k: 'especie', et: 'Espècie', v: e => (e.especies || []).map(s => s.nom), cerca: true },
+    { k: 'any', et: 'Any dels fets', v: e => [any(e)] },
+    { k: 'qualificacio', et: 'Gravetat', v: e => [qualDe(e) ? etCat('qualificacions', qualDe(e)) : 'Sense qualificar'] },
+    { k: 'denunciant', et: 'Denunciant', v: e => [etCat('tipus_denunciant', e.origen?.denunciant_tipus)] },
+    { k: 'estat', et: 'Estat', v: e => [etEstat(e.estat)] },
+    { k: 'sentit', et: 'Sentit de la resolució', v: e => [e.resolucio ? etCat('sentits_resolucio', e.resolucio.sentit) : 'Sense resolució'] },
+    { k: 'recurs', et: 'Recursos', v: e => [(e.recursos || []).length ? 'Amb recurs' : 'Sense recurs'] },
+    { k: 'resultat_recurs', et: 'Resultat del recurs', v: e => (e.recursos || []).map(r => r.resolucio ? etCat('sentits_recurs', r.resolucio.sentit) : 'Pendent') },
+    { k: 'reincidencia', et: 'Reincidència', v: e => [reincident(e) ? 'Persona amb més d’un expedient' : 'Un sol expedient'] },
+  ];
+  const sel = {}; let rang = { desde: '', fins: '', impMin: '', impMax: '' }, mapa = null, capa = null, ordre = { k: 'data', asc: false };
+  const valors = (f, e) => f.v(e).filter(x => x != null && x !== '');
+  function passa(e, excepte) {
+    const q = norm($('#dades-cerca').value.trim());
+    if (q && !norm([e.id, e.origen?.num_acta, e.localitzacio?.municipi, e.localitzacio?.paratge, e.fets].join(' ')).includes(q)) return false;
+    if (rang.desde && (e.origen?.data_fets || '') < rang.desde) return false;
+    if (rang.fins && (e.origen?.data_fets || '9999') > rang.fins) return false;
+    const imp = importDe(e);
+    if (rang.impMin !== '' && (imp == null || imp < +rang.impMin)) return false;
+    if (rang.impMax !== '' && (imp == null || imp > +rang.impMax)) return false;
+    return FILTRES.every(f => f.k === excepte || !sel[f.k]?.size || valors(f, e).some(v => sel[f.k].has(v)));
+  }
+  function pintaFiltres() {
+    const obert = new Set($$('#filtres details[open]').map(d => d.dataset.k));
+    $('#filtres').innerHTML = `<details class="filtre" data-k="_dates" ${obert.has('_dates') ? 'open' : ''}><summary>Data dels fets i import</summary><div class="filtre-cos">
+        <div class="rang"><input type="date" id="f-desde" value="${esc(rang.desde)}" aria-label="Des de"><input type="date" id="f-fins" value="${esc(rang.fins)}" aria-label="Fins a"></div>
+        <div class="rang" style="margin-top:6px"><input type="number" id="f-imin" placeholder="Import mín. €" value="${esc(rang.impMin)}"><input type="number" id="f-imax" placeholder="Import màx. €" value="${esc(rang.impMax)}"></div></div></details>`
+      + FILTRES.map(f => {
+        const n = {};
+        S.exp.filter(e => passa(e, f.k)).forEach(e => valors(f, e).forEach(v => { n[v] = (n[v] || 0) + 1; }));
+        S.exp.forEach(e => valors(f, e).forEach(v => { if (!(v in n)) n[v] = 0; }));
+        const ops = Object.keys(n).sort((a, b) => f.k === 'any' ? b.localeCompare(a) : (n[b] - n[a]) || ordCa(a, b));
+        const s = sel[f.k] || new Set();
+        return `<details class="filtre" data-k="${f.k}" ${obert.has(f.k) || s.size ? 'open' : ''}><summary>${esc(f.et)} ${s.size ? `<span class="n-sel">${s.size}</span>` : ''}</summary><div class="filtre-cos">
+          <div class="opcions">${ops.map(o => `<label class="opcio ${n[o] ? '' : 'zero'}"><input type="checkbox" data-f="${f.k}" value="${esc(o)}" ${s.has(o) ? 'checked' : ''}><span class="t" title="${esc(o)}">${esc(o)}</span><span class="c">${n[o]}</span></label>`).join('') || '<span class="text-small text-muted">Sense valors</span>'}</div></div></details>`;
+      }).join('');
+  }
+  function barres(cont, comptes, color = 'var(--color-primary-teal)') {
+    const ent = Object.entries(comptes).sort((a, b) => b[1] - a[1]).slice(0, 10), max = Math.max(1, ...ent.map(x => x[1]));
+    $(cont).innerHTML = ent.map(([t, n]) => `<div class="barra"><span class="t" title="${esc(t)}">${esc(t)}</span><span class="pista"><span class="ple" style="width:${(n / max * 100).toFixed(1)}%;background:${color}"></span></span><span class="n">${n}</span></div>`).join('') || '<span class="text-small text-muted">Sense dades</span>';
+  }
+  const compta = (els, fn) => { const c = {}; els.forEach(e => [].concat(fn(e)).filter(Boolean).forEach(v => { c[v] = (c[v] || 0) + 1; })); return c; };
+  const COLORS_ESTAT = { entrada: '#0b4f8a', informe_tecnic: '#c99700', informe_lliurat: '#d9822b', instruccio: '#6a4bb5', resolt: '#088074', arxivat: '#8a8a85' };
+  function pintaMapa(els) {
+    if (typeof L === 'undefined') { $('#mapa-nota').textContent = 'El mapa no està disponible sense connexió.'; return; }
+    if (!mapa) {
+      mapa = L.map('mapa-dades').setView([41.75, 1.6], 8);
+      const capes = {
+        'Topogràfic (ICGC)': L.tileLayer('https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/topografic/MON3857NW/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© ICGC' }),
+        'Ortofoto (ICGC)': L.tileLayer('https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/orto/MON3857NW/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© ICGC' }),
+      };
+      capes['Topogràfic (ICGC)'].addTo(mapa);
+      L.control.layers(capes).addTo(mapa);
+      const ll = L.control({ position: 'bottomright' });
+      ll.onAdd = () => { const d = L.DomUtil.create('div', 'llegenda-mapa'); d.innerHTML = Object.entries(COLORS_ESTAT).map(([k, c]) => `<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:6px"></span>${esc(etEstat(k))}</div>`).join(''); return d; };
+      ll.addTo(mapa);
+    }
+    capa?.remove();
+    capa = L.layerGroup().addTo(mapa);
+    const amb = els.filter(e => e.localitzacio?.utm?.x && e.localitzacio?.utm?.y);
+    const pts = amb.map(e => {
+      const p = UTM.aLatLon(+e.localitzacio.utm.x, +e.localitzacio.utm.y);
+      L.circleMarker(p, { radius: 7, color: '#fff', weight: 2, fillColor: COLORS_ESTAT[e.estat] || '#555', fillOpacity: 1 })
+        .bindPopup(`<div class="popup-el"><h4>${esc(e.id)}</h4><p>${esc(e.localitzacio.municipi || '')} · ${esc(fmtData(e.origen?.data_fets))}</p><p>${esc(etEstat(e.estat))}</p><p><a href="#" data-obre-exp="${esc(e.id)}">Obre l'expedient</a></p></div>`).addTo(capa);
+      return p;
+    });
+    if (pts.length) mapa.fitBounds(pts, { maxZoom: 12, padding: [30, 30] });
+    $('#mapa-nota').textContent = `${amb.length} de ${els.length} amb coordenades`;
+    setTimeout(() => mapa.invalidateSize(), 50);
+  }
+  const COLS = [
+    { k: 'id', t: 'Expedient', v: e => e.id },
+    { k: 'data', t: 'Data dels fets', v: e => e.origen?.data_fets || '', f: e => fmtData(e.origen?.data_fets) },
+    { k: 'comarca', t: 'Comarca', v: e => e.localitzacio?.comarca || '' },
+    { k: 'municipi', t: 'Municipi', v: e => e.localitzacio?.municipi || '' },
+    { k: 'tematica', t: 'Temàtica', v: e => e.tematica ? etCat('tematiques', e.tematica) : '' },
+    { k: 'denunciant', t: 'Denunciant', v: e => e.origen?.denunciant_tipus || '' },
+    { k: 'qual', t: 'Gravetat', v: e => qualDe(e) ? etCat('qualificacions', qualDe(e)) : '' },
+    { k: 'import', t: 'Import', v: e => importDe(e) ?? -1, f: e => importDe(e) != null ? fmtEur(importDe(e)) : '', num: true },
+    { k: 'estat', t: 'Estat', v: e => etEstat(e.estat), h: e => htmlEstat(e.estat) },
+    { k: 'recurs', t: 'Recurs', v: e => (e.recursos || []).length ? 'Sí' : '' },
+  ];
+  let filtrats = [];
+  function pinta() {
+    filtrats = S.exp.filter(e => passa(e));
+    pintaFiltres();
+    const chips = [];
+    Object.entries(sel).forEach(([k, s]) => s.forEach(v => chips.push(`<button type="button" class="xip" data-treu="${esc(k)}" data-v="${esc(v)}">${esc(FILTRES.find(f => f.k === k)?.et)}: ${esc(v)} ✕</button>`)));
+    if (rang.desde || rang.fins) chips.push(`<span class="xip">Dates: ${esc(fmtData(rang.desde) || '…')} – ${esc(fmtData(rang.fins) || '…')}</span>`);
+    $('#chips-filtres').innerHTML = chips.join('');
+    const sancionats = filtrats.filter(e => importDe(e) != null), total = sancionats.reduce((s, e) => s + importDe(e), 0);
+    const ambRec = filtrats.filter(e => (e.recursos || []).length).length;
+    $('#kpis').innerHTML = [
+      ['Expedients', NF.format(filtrats.length), `de ${S.exp.length}`],
+      ['En tràmit', NF.format(filtrats.filter(e => !['resolt', 'arxivat'].includes(e.estat)).length), 'pendents de resolució'],
+      ['Import de les sancions', fmtEur(total), sancionats.length ? `mitjana ${fmtEur(total / sancionats.length)}` : 'cap sanció imposada'],
+      ['Amb recurs', NF.format(ambRec), filtrats.length ? `${Math.round(ambRec / filtrats.length * 100)} % dels expedients` : ''],
+      ['Reincidència', NF.format(filtrats.filter(reincident).length), 'expedients de persones amb més d’un'],
+    ].map(([et, v, s]) => `<div class="kpi"><div class="et">${esc(et)}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
+    barres('#dist-tematica', compta(filtrats, e => e.tematica ? etCat('tematiques', e.tematica) : 'Sense temàtica'));
+    barres('#dist-ambit', compta(filtrats, e => { const a = ambitDe(e.localitzacio?.comarca); return a ? nomUnitat(a) : 'Sense comarca'; }));
+    barres('#dist-estat', compta(filtrats, e => etEstat(e.estat)), '#6a4bb5');
+    barres('#dist-qualificacio', compta(filtrats, e => qualDe(e) ? etCat('qualificacions', qualDe(e)) : 'Sense qualificar'), '#d9822b');
+    const c = COLS.find(x => x.k === ordre.k);
+    const ord = [...filtrats].sort((a, b) => { const x = c.v(a), y = c.v(b); const r = typeof x === 'number' ? x - y : ordCa(x, y); return ordre.asc ? r : -r; });
+    $('#taula-info').textContent = `${ord.length} expedients`;
+    $('#taula-dades').innerHTML = `<thead><tr>${COLS.map(x => `<th class="ord ${x.num ? 'num' : ''}" data-ord="${x.k}">${esc(x.t)}${ordre.k === x.k ? (ordre.asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
+      <tbody>${ord.map(e => `<tr class="clic" data-obre-exp="${esc(e.id)}">${COLS.map(x => `<td class="${x.num ? 'num' : ''}">${x.h ? x.h(e) : esc(x.f ? x.f(e) : x.v(e))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    pintaMapa(filtrats);
+  }
+  function csv() {
+    const cols = [...COLS.map(x => [x.t, e => (x.f ? x.f(e) : x.v(e))]),
+      ['Àmbit territorial', e => nomUnitat(ambitDe(e.localitzacio?.comarca))], ['ENP', e => nomUnitat(e.localitzacio?.enp)],
+      ['UTM X', e => e.localitzacio?.utm?.x ?? ''], ['UTM Y', e => e.localitzacio?.utm?.y ?? ''],
+      ['Matèria (denunciant)', e => (e.materia_car || []).map(m => etCat('materies_car', m)).join('; ')], ['Espècies', e => (e.especies || []).map(s => `${s.nom} (${s.exemplars ?? '?'})`).join('; ')],
+      ['Reincidència', e => reincident(e) ? 'Sí' : 'No']];
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const txt = '﻿' + [cols.map(c => q(c[0])).join(';'), ...filtrats.map(e => cols.map(c => q(c[1](e))).join(';'))].join('\r\n');
+    descarrega(`sancionadors_${avui()}.csv`, txt, 'text/csv;charset=utf-8');
+  }
+  $('#filtres').addEventListener('change', ev => {
+    const i = ev.target;
+    if (i.dataset.f) { const s = sel[i.dataset.f] || (sel[i.dataset.f] = new Set()); i.checked ? s.add(i.value) : s.delete(i.value); }
+    else rang = { desde: $('#f-desde').value, fins: $('#f-fins').value, impMin: $('#f-imin').value, impMax: $('#f-imax').value };
+    pinta();
+  });
+  $('#dades-cerca').addEventListener('input', pinta);
+  $('#btn-neteja').addEventListener('click', () => { Object.keys(sel).forEach(k => delete sel[k]); rang = { desde: '', fins: '', impMin: '', impMax: '' }; $('#dades-cerca').value = ''; pinta(); });
+  $('#chips-filtres').addEventListener('click', ev => { const b = ev.target.closest('[data-treu]'); if (b) { sel[b.dataset.treu]?.delete(b.dataset.v); pinta(); } });
+  $('#taula-dades').addEventListener('click', ev => {
+    const th = ev.target.closest('[data-ord]');
+    if (th) { ordre = { k: th.dataset.ord, asc: ordre.k === th.dataset.ord ? !ordre.asc : true }; pinta(); return; }
+    const tr = ev.target.closest('[data-obre-exp]'); if (tr) Tramitacio.obre(tr.dataset.obreExp);
+  });
+  $('#mapa-dades').addEventListener('click', ev => { const a = ev.target.closest('[data-obre-exp]'); if (a) { ev.preventDefault(); Tramitacio.obre(a.dataset.obreExp); } });
+  $('#btn-csv').addEventListener('click', csv);
+  return { mostra: pinta, pinta };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// REFRESC I INICI
+// ════════════════════════════════════════════════════════════════════
+function refrescaTot() {
+  const esp = $('#dl-especies');
+  const noms = new Set([...(S.cat.especies || []).map(x => x.nom), ...S.exp.flatMap(e => (e.especies || []).map(s => s.nom))]);
+  esp.innerHTML = [...noms].sort(ordCa).map(n => `<option value="${esc(n)}"></option>`).join('');
+  Inici.pinta();
+  if (modulActual === 'tramitacio') Tramitacio.pinta();
+  if (modulActual === 'recursos') Recursos.pinta();
+  if (modulActual === 'dades') Dades.pinta();
+  if (Carpeta.estat) Carpeta.repinta();
+  $('#peu-info').textContent = `versió ${CONFIG.VERSIO} · ${S.exp.length} expedients · dades: ${S.font === 'carpeta' ? 'carpeta de treball' : ({ GitHub: 'GitHub', web: 'servidor web', incrustada: 'còpia incrustada', buida: 'sense dades' })[ORIGEN_FITXER['catalegs.json']] || 'GitHub'}`;
+}
+(async function inicia() {
+  carregaUsuari();
+  await Carpeta.inicia();
+  try {
+    await carregaDades();
+    $('#estat-carrega').hidden = true;
+  } catch (e) {
+    $('#estat-carrega').className = 'error-box';
+    $('#estat-carrega').textContent = 'No s’han pogut carregar les dades: ' + e.message;
+  }
+  if (!Carpeta.estat) Carpeta.pinta('cap');
+  refrescaTot();
+  Carpeta.finestraInicial();
+  if (!S.usuari) setTimeout(() => demanaUsuari('Benvingut/da al Motor de Sancionadors. Indica el teu nom i el teu perfil.'), 300);
+})();
+</script>
+</body>
+</html>

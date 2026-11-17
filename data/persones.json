@@ -1,0 +1,19 @@
+[
+  {
+    "id": "PER-0001",
+    "tipus": "fisica",
+    "nif": "12345678Z",
+    "nom": "Jordi Exemple Proves",
+    "adreca": "Carrer Fictici, 1",
+    "poblacio": "Palafrugell",
+    "cp": null,
+    "email": "persona.prova@example.com",
+    "telefon": "600000000",
+    "dades_prova": true,
+    "versio": 1,
+    "creat": "2024-10-21T10:00:00.000Z",
+    "creat_per": "Càrrega inicial",
+    "modificat": "2024-10-21T10:00:00.000Z",
+    "modificat_per": "Càrrega inicial"
+  }
+]

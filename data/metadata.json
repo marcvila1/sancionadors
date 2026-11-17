@@ -1,0 +1,10 @@
+{
+  "projecte": "Motor de Sancionadors — DGPAMN",
+  "versio_dades": "0.1",
+  "generat": "2026-11-13",
+  "fonts": {
+    "unitats_promotores": "Es llegeix directament de marcvila1/Motor-Contractacio-DGPA (unitats_promotores.json)"
+  },
+  "sistema_coordenades": { "utm": "ETRS89 / UTM fus 31N", "epsg": 25831, "unitat": "metres" },
+  "avis_dades": "Les dades d'aquest repositori són de prova. L'expedient SAN-2024-0001 reprodueix els fets d'una acta real del CAR amb les dades personals substituïdes per dades fictícies."
+}
