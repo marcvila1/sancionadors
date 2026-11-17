@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Motor de Sancionadors DGPAMN</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://geoserveis.icgc.cat https://tile.openstreetmap.org https://unpkg.com; connect-src 'self' data: blob: https://raw.githubusercontent.com https://unpkg.com; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src blob:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://geoserveis.icgc.cat https://tile.openstreetmap.org https://unpkg.com; connect-src 'self' data: blob: https://raw.githubusercontent.com https://unpkg.com; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
@@ -594,7 +594,7 @@ const CONFIG = {
     worker: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
     workerSri: 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2',
   },
-  VERSIO: '0.2',
+  VERSIO: '0.2.1',
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -1207,20 +1207,32 @@ const opcionsTecnics = () => {
 //   · Informe complementari: PDF de text (Word) → es llegeix el text i se'n treuen les dades.
 // ════════════════════════════════════════════════════════════════════
 let promesaPdfjs = null;
-function carregaPdfjs() {
-  if (!promesaPdfjs) promesaPdfjs = new Promise((ok, ko) => {
+/**
+ * Carrega pdf.js i el seu «worker» com a scripts normals de la pàgina (amb control d'integritat).
+ * Quan el worker ja és a la pàgina, pdf.js el fa servir directament i no crea cap procés auxiliar.
+ * Així funciona igual si el programa s'obre des d'un servidor o directament des de l'ordinador (file://).
+ */
+function carregaScript(src, integrity) {
+  return new Promise((ok, ko) => {
     const s = document.createElement('script');
-    s.src = CONFIG.PDFJS.lib; s.integrity = CONFIG.PDFJS.libSri; s.crossOrigin = 'anonymous';
-    s.onload = async () => {
-      try {
-        const t = await (await fetch(CONFIG.PDFJS.worker, { integrity: CONFIG.PDFJS.workerSri })).text();
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
-        ok(window.pdfjsLib);
-      } catch (e) { promesaPdfjs = null; ko(new Error("No s'ha pogut carregar el lector de PDF: " + e.message)); }
-    };
-    s.onerror = () => { promesaPdfjs = null; ko(new Error("No s'ha pogut carregar el lector de PDF (cal connexió a internet).")); };
+    s.src = src; s.integrity = integrity; s.crossOrigin = 'anonymous';
+    s.onload = ok; s.onerror = () => ko(new Error(`no s'ha pogut carregar ${src.split('/').pop()}`));
     document.head.appendChild(s);
   });
+}
+function carregaPdfjs() {
+  if (!promesaPdfjs) promesaPdfjs = (async () => {
+    try {
+      await carregaScript(CONFIG.PDFJS.worker, CONFIG.PDFJS.workerSri);
+      await carregaScript(CONFIG.PDFJS.lib, CONFIG.PDFJS.libSri);
+      if (!window.pdfjsWorker?.WorkerMessageHandler) throw new Error('el lector no s’ha inicialitzat');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = CONFIG.PDFJS.worker;
+      return window.pdfjsLib;
+    } catch (e) {
+      promesaPdfjs = null;
+      throw new Error(`No s'ha pogut carregar el lector de PDF (${e.message}). Cal connexió a internet.`);
+    }
+  })();
   return promesaPdfjs;
 }
 const dataDMA = t => {
